@@ -71,7 +71,7 @@ create_vertex_info(const rust::String &type, graphar::IdType chunk_size,
                    std::shared_ptr<const graphar::InfoVersion> version) {
   std::vector<std::string> label_vec;
   label_vec.reserve(labels.size());
-  for (size_t i; i < labels.size(); ++i) {
+  for (size_t i = 0; i < labels.size(); ++i) {
     label_vec.emplace_back(std::string(labels[i]));
   }
 
