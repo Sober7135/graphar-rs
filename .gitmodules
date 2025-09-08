@@ -1,0 +1,6 @@
+[submodule "incubator-graphar"]
+	path = incubator-graphar
+	url = https://github.com/apache/incubator-graphar.git
+[submodule "incubator-graphar-testing"]
+	path = incubator-graphar-testing
+	url = https://github.com/apache/incubator-graphar-testing.git

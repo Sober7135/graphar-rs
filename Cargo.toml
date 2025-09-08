@@ -1,0 +1,12 @@
+[package]
+name = "graphar"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0.99"
+cxx = "1.0.168"
+
+[build-dependencies]
+cxx-build = "1.0.168"
+cmake = "0.1.54"
