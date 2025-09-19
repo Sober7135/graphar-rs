@@ -320,12 +320,121 @@ pub(crate) mod ffi {
         #[namespace = "graphar_rs"]
         fn edges_dump(builder: Pin<&mut EdgesBuilder>) -> Result<()>;
     }
+
+    // Expression
+    #[namespace = "graphar"]
+    unsafe extern "C++" {
+        type Expression;
+        // TODO
+    }
+
+    // VertexIter
+    #[namespace = "graphar"]
+    unsafe extern "C++" {
+        type VertexIter;
+    }
+    #[namespace = "graphar_rs"]
+    unsafe extern "C++" {
+        fn vertex_iter_id(iter: Pin<&mut VertexIter>) -> i64;
+        fn vertex_iter_property_bool(iter: Pin<&mut VertexIter>, name: &CxxString) -> Result<bool>;
+        fn vertex_iter_property_i32(iter: Pin<&mut VertexIter>, name: &CxxString) -> Result<i32>;
+        fn vertex_iter_property_i64(iter: Pin<&mut VertexIter>, name: &CxxString) -> Result<i64>;
+        fn vertex_iter_property_f32(iter: Pin<&mut VertexIter>, name: &CxxString) -> Result<f32>;
+        fn vertex_iter_property_f64(iter: Pin<&mut VertexIter>, name: &CxxString) -> Result<f64>;
+        fn vertex_iter_property_string(
+            iter: Pin<&mut VertexIter>,
+            name: &CxxString,
+        ) -> Result<String>;
+        fn vertex_iter_has_label(iter: Pin<&mut VertexIter>, label: &CxxString) -> Result<bool>;
+        fn vertex_iter_labels(iter: Pin<&mut VertexIter>) -> Result<Vec<String>>;
+        fn vertex_iter_next(iter: Pin<&mut VertexIter>);
+    }
+
+    // EdgeIter
+    #[namespace = "graphar"]
+    unsafe extern "C++" {
+        type EdgeIter;
+
+        fn source(self: Pin<&mut EdgeIter>) -> i64;
+        fn destination(self: Pin<&mut EdgeIter>) -> i64;
+        fn global_chunk_index(&self) -> i64;
+        fn cur_offset(&self) -> i64;
+        fn first_src(self: Pin<&mut EdgeIter>, from: &EdgeIter, id: i64) -> bool;
+        fn first_dst(self: Pin<&mut EdgeIter>, from: &EdgeIter, id: i64) -> bool;
+        fn is_end(&self) -> bool;
+    }
+    #[namespace = "graphar_rs"]
+    unsafe extern "C++" {
+        fn edge_iter_property_bool(iter: Pin<&mut EdgeIter>, name: &CxxString) -> Result<bool>;
+        fn edge_iter_property_i32(iter: Pin<&mut EdgeIter>, name: &CxxString) -> Result<i32>;
+        fn edge_iter_property_i64(iter: Pin<&mut EdgeIter>, name: &CxxString) -> Result<i64>;
+        fn edge_iter_property_f32(iter: Pin<&mut EdgeIter>, name: &CxxString) -> Result<f32>;
+        fn edge_iter_property_f64(iter: Pin<&mut EdgeIter>, name: &CxxString) -> Result<f64>;
+        fn edge_iter_property_string(iter: Pin<&mut EdgeIter>, name: &CxxString) -> Result<String>;
+        fn edge_iter_next(iter: Pin<&mut EdgeIter>);
+        fn edge_iter_to_begin(iter: Pin<&mut EdgeIter>);
+        fn edge_iter_next_src(iter: Pin<&mut EdgeIter>) -> bool;
+        fn edge_iter_next_dst(iter: Pin<&mut EdgeIter>) -> bool;
+        fn edge_iter_next_src_with_id(iter: Pin<&mut EdgeIter>, id: i64) -> bool;
+        fn edge_iter_next_dst_with_id(iter: Pin<&mut EdgeIter>, id: i64) -> bool;
+    }
+
+    #[namespace = "graphar"]
+    unsafe extern "C++" {
+        type VerticesCollection;
+
+        fn size(&self) -> usize;
+    }
+    #[namespace = "graphar_rs"]
+    unsafe extern "C++" {
+        fn vertices_collection_make(
+            graph_info: &SharedPtr<GraphInfo>,
+            type_: &CxxString,
+        ) -> Result<SharedPtr<VerticesCollection>>;
+        fn vertices_collection_begin(vc: Pin<&mut VerticesCollection>) -> UniquePtr<VertexIter>;
+        fn vertices_collection_end(vc: Pin<&mut VerticesCollection>) -> UniquePtr<VertexIter>;
+        fn vertices_collection_find(
+            vc: Pin<&mut VerticesCollection>,
+            id: i64,
+        ) -> UniquePtr<VertexIter>;
+        fn filter_by_label_with_chunk(
+            vc: Pin<&mut VerticesCollection>,
+            filter_labels: &CxxVector<CxxString>,
+            new_valid_chunk: Pin<&mut CxxVector<i64>>,
+        ) -> Result<UniquePtr<CxxVector<i64>>>;
+        fn filter_by_label(
+            vc: Pin<&mut VerticesCollection>,
+            filter_labels: &CxxVector<CxxString>,
+        ) -> Result<UniquePtr<CxxVector<i64>>>;
+        fn filter_by_acero(
+            vc: &VerticesCollection,
+            filter_labels: &CxxVector<CxxString>,
+        ) -> Result<UniquePtr<CxxVector<i64>>>;
+        fn filter_by_property_name_with_chunk(
+            vc: Pin<&mut VerticesCollection>,
+            property_name: &CxxString,
+            filter_expr: SharedPtr<Expression>,
+            new_valid_chunk: Pin<&mut CxxVector<i64>>,
+        ) -> Result<UniquePtr<CxxVector<i64>>>;
+        fn filter_by_property_name(
+            vc: Pin<&mut VerticesCollection>,
+            property_name: &CxxString,
+            filter_expr: SharedPtr<Expression>,
+        ) -> Result<UniquePtr<CxxVector<i64>>>;
+
+        // TODO(static member function)
+    }
+
+    #[namespace = "graphar"]
+    unsafe extern "C++" {
+        type EdgesCollection;
+    }
 }
 
 #[cfg(test)]
 mod tests {
 
-    use std::path::Path;
+    use std::{path::Path, vec};
 
     use cxx::{CxxVector, SharedPtr, UniquePtr, let_cxx_string};
 

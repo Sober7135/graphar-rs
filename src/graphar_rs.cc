@@ -1,14 +1,36 @@
 #include "graphar_rs.h"
+#include "graphar/fwd.h"
+#include "graphar/high-level/graph_reader.h"
 
+#include <algorithm>
 #include <cassert>
 #include <cstddef>
 #include <memory>
 #include <stdexcept>
 #include <string>
 #include <utility>
+#include <vector>
 
 // Should we replace std::runtime_error with custom exception??
 namespace graphar_rs {
+
+namespace {
+
+template <typename T> T ValueOrThrow(graphar::Result<T> &&result) {
+  if (result.has_error()) {
+    throw std::runtime_error(result.error().message());
+  }
+  return std::move(result).value();
+}
+
+inline void ThrowIfStatusError(const graphar::Status &status) {
+  if (!status.ok()) {
+    throw std::runtime_error(status.message());
+  }
+}
+
+} // namespace
+
 std::shared_ptr<graphar::InfoVersion> new_info_version(int version) {
   return std::make_shared<graphar::InfoVersion>(version);
 }
@@ -234,6 +256,205 @@ void edges_dump(graphar::builder::EdgesBuilder &builder) {
   if (!status.ok()) {
     throw std::runtime_error(status.message());
   }
+}
+
+// VertexIter
+graphar::IdType vertex_iter_id(graphar::VertexIter &iter) { return iter.id(); }
+
+void vertex_iter_next(graphar::VertexIter &iter) { ++iter; }
+
+bool vertex_iter_has_label(graphar::VertexIter &iter,
+                           const std::string &label) {
+  auto result = iter.hasLabel(label);
+  return ValueOrThrow(std::move(result));
+}
+
+rust::Vec<rust::String> vertex_iter_labels(graphar::VertexIter &iter) {
+  auto result = iter.label();
+  auto labels = ValueOrThrow(std::move(result));
+  rust::Vec<rust::String> out;
+  out.reserve(labels.size());
+  for (auto const &label : labels) {
+    out.push_back(rust::String(label));
+  }
+  return out;
+}
+
+namespace {
+
+template <typename T>
+T VertexPropertyOrThrow(graphar::VertexIter &iter, const std::string &name) {
+  auto vertex = (*iter);
+  auto result = vertex.property<T>(name);
+  return ValueOrThrow(std::move(result));
+}
+
+} // namespace
+
+bool vertex_iter_property_bool(graphar::VertexIter &iter,
+                               const std::string &name) {
+  return VertexPropertyOrThrow<bool>(iter, name);
+}
+
+int32_t vertex_iter_property_i32(graphar::VertexIter &iter,
+                                 const std::string &name) {
+  return VertexPropertyOrThrow<int32_t>(iter, name);
+}
+
+int64_t vertex_iter_property_i64(graphar::VertexIter &iter,
+                                 const std::string &name) {
+  return VertexPropertyOrThrow<int64_t>(iter, name);
+}
+
+float vertex_iter_property_f32(graphar::VertexIter &iter,
+                               const std::string &name) {
+  return VertexPropertyOrThrow<float>(iter, name);
+}
+
+double vertex_iter_property_f64(graphar::VertexIter &iter,
+                                const std::string &name) {
+  return VertexPropertyOrThrow<double>(iter, name);
+}
+
+rust::String vertex_iter_property_string(graphar::VertexIter &iter,
+                                         const std::string &name) {
+  return rust::String(VertexPropertyOrThrow<std::string>(iter, name));
+}
+
+namespace {
+
+template <typename T>
+T EdgePropertyOrThrow(graphar::EdgeIter &iter, const std::string &name) {
+  auto edge = (*iter);
+  auto result = edge.property<T>(name);
+  return ValueOrThrow(std::move(result));
+}
+
+template <typename T, typename Pred>
+auto vector_from_vec(const rust::Vec<T> &vec, Pred pred) {
+  auto size = vec.size();
+  auto out = std::vector<decltype(pred(vec[0]))>(size);
+  for (size_t i = 0; i < size; i++) {
+    out[i] = pred(vec[i]);
+  }
+  return out;
+}
+
+template <typename T, typename Pred>
+auto vec_from_vector(const std::vector<T> &vec, Pred pred) {
+  auto size = vec.size();
+  auto out = rust::Vec<decltype(pred(vec[0]))>(size);
+  for (size_t i = 0; i < size; i++) {
+    out[i] = pred(vec[i]);
+  }
+  return out;
+}
+} // namespace
+
+bool edge_iter_property_bool(graphar::EdgeIter &iter, const std::string &name) {
+  return EdgePropertyOrThrow<bool>(iter, name);
+}
+
+int32_t edge_iter_property_i32(graphar::EdgeIter &iter,
+                               const std::string &name) {
+  return EdgePropertyOrThrow<int32_t>(iter, name);
+}
+
+int64_t edge_iter_property_i64(graphar::EdgeIter &iter,
+                               const std::string &name) {
+  return EdgePropertyOrThrow<int64_t>(iter, name);
+}
+
+float edge_iter_property_f32(graphar::EdgeIter &iter, const std::string &name) {
+  return EdgePropertyOrThrow<float>(iter, name);
+}
+
+double edge_iter_property_f64(graphar::EdgeIter &iter,
+                              const std::string &name) {
+  return EdgePropertyOrThrow<double>(iter, name);
+}
+
+rust::String edge_iter_property_string(graphar::EdgeIter &iter,
+                                       const std::string &name) {
+  return rust::String(EdgePropertyOrThrow<std::string>(iter, name));
+}
+
+void edge_iter_next(graphar::EdgeIter &iter) { ++iter; }
+
+bool edge_iter_next_src(graphar::EdgeIter &iter) { return iter.next_src(); }
+
+bool edge_iter_next_dst(graphar::EdgeIter &iter) { return iter.next_dst(); }
+
+bool edge_iter_next_src_with_id(graphar::EdgeIter &iter, graphar::IdType id) {
+  return iter.next_src(id);
+}
+
+bool edge_iter_next_dst_with_id(graphar::EdgeIter &iter, graphar::IdType id) {
+  return iter.next_dst(id);
+}
+
+// VerticeCollection
+std::shared_ptr<graphar::VerticesCollection>
+vertices_collection_make(const std::shared_ptr<graphar::GraphInfo> &graph_info,
+                         const std::string &type) {
+  return ValueOrThrow<std::shared_ptr<graphar::VerticesCollection>>(
+      graphar::VerticesCollection::Make(graph_info, type));
+}
+
+std::unique_ptr<graphar::VertexIter>
+vertices_collection_begin(graphar::VerticesCollection &vc) {
+  return std::make_unique<graphar::VertexIter>(vc.begin());
+}
+
+std::unique_ptr<graphar::VertexIter>
+vertices_collection_end(graphar::VerticesCollection &vc) {
+  return std::make_unique<graphar::VertexIter>(vc.end());
+}
+
+std::unique_ptr<graphar::VertexIter>
+vertices_collection_find(graphar::VerticesCollection &vc, graphar::IdType id) {
+  return std::make_unique<graphar::VertexIter>(vc.find(id));
+}
+
+std::unique_ptr<std::vector<graphar::IdType>>
+filter_by_label_with_chunk(graphar::VerticesCollection &vc,
+                           const std::vector<std::string> &filter_labels,
+                           std::vector<graphar::IdType> &new_vaild_chunk) {
+  auto res = ValueOrThrow<std::vector<graphar::IdType>>(
+      vc.filter(filter_labels, &new_vaild_chunk));
+  return std::make_unique<std::vector<graphar::IdType>>(res);
+}
+
+std::unique_ptr<std::vector<graphar::IdType>>
+filter_by_label(graphar::VerticesCollection &vc,
+                const std::vector<std::string> &filter_labels) {
+  auto res = ValueOrThrow(vc.filter(filter_labels));
+  return std::make_unique<std::vector<graphar::IdType>>(res);
+}
+
+std::unique_ptr<std::vector<graphar::IdType>>
+filter_by_acero(const graphar::VerticesCollection &vc,
+                const std::vector<std::string> &filter_labels) {
+  auto res = ValueOrThrow(vc.filter_by_acero(filter_labels));
+  return std::make_unique<std::vector<graphar::IdType>>(res);
+}
+
+std::unique_ptr<std::vector<graphar::IdType>>
+filter_by_property_name_with_chunk(
+    graphar::VerticesCollection &vc, const std::string &property_name,
+    std::shared_ptr<graphar::Expression> filter_expr,
+    std::vector<graphar::IdType> &new_vaild_chunk) {
+  auto res =
+      ValueOrThrow(vc.filter(property_name, filter_expr, &new_vaild_chunk));
+  return std::make_unique<std::vector<graphar::IdType>>(res);
+}
+
+std::unique_ptr<std::vector<graphar::IdType>>
+filter_by_property_name(graphar::VerticesCollection &vc,
+                        const std::string &property_name,
+                        std::shared_ptr<graphar::Expression> filter_expr) {
+  auto res = ValueOrThrow(vc.filter(property_name, filter_expr));
+  return std::make_unique<std::vector<graphar::IdType>>(res);
 }
 
 } // namespace graphar_rs

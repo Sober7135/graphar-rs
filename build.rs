@@ -1,8 +1,8 @@
 use std::path::{Path, PathBuf};
 
 fn link_libraries() {
-    // static link
-    println!("cargo:rustc-link-lib=static=graphar_bundled_dependencies");
+    // build from source should enable this
+    // println!("cargo:rustc-link-lib=static=graphar_bundled_dependencies");
     println!("cargo:rustc-link-lib=graphar");
 }
 
@@ -12,6 +12,7 @@ fn build_ffi(bridge_file: &str, out_name: &str, source_file: &str, include_paths
 
     build.includes(include_paths);
     build.flag("-std=c++17");
+    build.flag("-fdiagnostics-color=always");
     // We should define ARROW_ORC, because we built arrow from source,
     // in this case, CMakeLists.txt will add this definition, so we need to add manually
     build.define("ARROW_ORC", None);
@@ -26,7 +27,7 @@ fn build_bundled_cmake() -> Vec<PathBuf> {
     let mut build = cmake::Config::new(&graph_ar_root);
     build
         .no_build_target(true)
-        .define("BUILD_ARROW_FROM_SOURCE", "on")
+        // .define("BUILD_ARROW_FROM_SOURCE", "on")
         .define("CMAKE_BUILD_TYPE", "Release");
     let build_dir = build.build();
 
