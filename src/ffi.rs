@@ -327,6 +327,50 @@ pub(crate) mod ffi {
         type Expression;
         // TODO
     }
+    #[namespace = "graphar_rs"]
+    unsafe extern "C++" {
+        fn expression_property(name: &CxxString) -> SharedPtr<Expression>;
+        fn expression_property_by_property(property: &Property) -> SharedPtr<Expression>;
+        fn expression_literal_bool(value: bool) -> SharedPtr<Expression>;
+        fn expression_literal_i32(value: i32) -> SharedPtr<Expression>;
+        fn expression_literal_i64(value: i64) -> SharedPtr<Expression>;
+        fn expression_literal_f32(value: f32) -> SharedPtr<Expression>;
+        fn expression_literal_f64(value: f64) -> SharedPtr<Expression>;
+        fn expression_literal_string(value: &CxxString) -> SharedPtr<Expression>;
+        fn expression_equal(
+            lhs: &SharedPtr<Expression>,
+            rhs: &SharedPtr<Expression>,
+        ) -> SharedPtr<Expression>;
+        fn expression_not_equal(
+            lhs: &SharedPtr<Expression>,
+            rhs: &SharedPtr<Expression>,
+        ) -> SharedPtr<Expression>;
+        fn expression_greater_than(
+            lhs: &SharedPtr<Expression>,
+            rhs: &SharedPtr<Expression>,
+        ) -> SharedPtr<Expression>;
+        fn expression_greater_equal(
+            lhs: &SharedPtr<Expression>,
+            rhs: &SharedPtr<Expression>,
+        ) -> SharedPtr<Expression>;
+        fn expression_less_than(
+            lhs: &SharedPtr<Expression>,
+            rhs: &SharedPtr<Expression>,
+        ) -> SharedPtr<Expression>;
+        fn expression_less_equal(
+            lhs: &SharedPtr<Expression>,
+            rhs: &SharedPtr<Expression>,
+        ) -> SharedPtr<Expression>;
+        fn expression_and(
+            lhs: &SharedPtr<Expression>,
+            rhs: &SharedPtr<Expression>,
+        ) -> SharedPtr<Expression>;
+        fn expression_or(
+            lhs: &SharedPtr<Expression>,
+            rhs: &SharedPtr<Expression>,
+        ) -> SharedPtr<Expression>;
+        fn expression_not(expr: &SharedPtr<Expression>) -> SharedPtr<Expression>;
+    }
 
     // VertexIter
     #[namespace = "graphar"]
@@ -346,7 +390,9 @@ pub(crate) mod ffi {
             name: &CxxString,
         ) -> Result<String>;
         fn vertex_iter_has_label(iter: Pin<&mut VertexIter>, label: &CxxString) -> Result<bool>;
-        fn vertex_iter_labels(iter: Pin<&mut VertexIter>) -> Result<Vec<String>>;
+        fn vertex_iter_labels(
+            iter: Pin<&mut VertexIter>,
+        ) -> Result<UniquePtr<CxxVector<CxxString>>>;
         fn vertex_iter_next(iter: Pin<&mut VertexIter>);
     }
 
@@ -377,8 +423,10 @@ pub(crate) mod ffi {
         fn edge_iter_next_dst(iter: Pin<&mut EdgeIter>) -> bool;
         fn edge_iter_next_src_with_id(iter: Pin<&mut EdgeIter>, id: i64) -> bool;
         fn edge_iter_next_dst_with_id(iter: Pin<&mut EdgeIter>, id: i64) -> bool;
+        // TODO(let some of those generating by cxx)
     }
 
+    // VerticesCollection
     #[namespace = "graphar"]
     unsafe extern "C++" {
         type VerticesCollection;
@@ -391,43 +439,88 @@ pub(crate) mod ffi {
             graph_info: &SharedPtr<GraphInfo>,
             type_: &CxxString,
         ) -> Result<SharedPtr<VerticesCollection>>;
-        fn vertices_collection_begin(vc: Pin<&mut VerticesCollection>) -> UniquePtr<VertexIter>;
-        fn vertices_collection_end(vc: Pin<&mut VerticesCollection>) -> UniquePtr<VertexIter>;
+        fn vertices_collection_begin(
+            collection: Pin<&mut VerticesCollection>,
+        ) -> UniquePtr<VertexIter>;
+        fn vertices_collection_end(
+            collection: Pin<&mut VerticesCollection>,
+        ) -> UniquePtr<VertexIter>;
         fn vertices_collection_find(
-            vc: Pin<&mut VerticesCollection>,
+            collection: Pin<&mut VerticesCollection>,
             id: i64,
         ) -> UniquePtr<VertexIter>;
         fn filter_by_label_with_chunk(
-            vc: Pin<&mut VerticesCollection>,
+            collection: Pin<&mut VerticesCollection>,
             filter_labels: &CxxVector<CxxString>,
             new_valid_chunk: Pin<&mut CxxVector<i64>>,
         ) -> Result<UniquePtr<CxxVector<i64>>>;
         fn filter_by_label(
-            vc: Pin<&mut VerticesCollection>,
+            collection: Pin<&mut VerticesCollection>,
             filter_labels: &CxxVector<CxxString>,
         ) -> Result<UniquePtr<CxxVector<i64>>>;
         fn filter_by_acero(
-            vc: &VerticesCollection,
+            collection: &VerticesCollection,
             filter_labels: &CxxVector<CxxString>,
         ) -> Result<UniquePtr<CxxVector<i64>>>;
         fn filter_by_property_name_with_chunk(
-            vc: Pin<&mut VerticesCollection>,
+            collection: Pin<&mut VerticesCollection>,
             property_name: &CxxString,
             filter_expr: SharedPtr<Expression>,
             new_valid_chunk: Pin<&mut CxxVector<i64>>,
         ) -> Result<UniquePtr<CxxVector<i64>>>;
         fn filter_by_property_name(
-            vc: Pin<&mut VerticesCollection>,
+            collection: Pin<&mut VerticesCollection>,
             property_name: &CxxString,
             filter_expr: SharedPtr<Expression>,
         ) -> Result<UniquePtr<CxxVector<i64>>>;
-
-        // TODO(static member function)
+        fn vertices_collection_with_label(
+            graph_info: &SharedPtr<GraphInfo>,
+            type_: &CxxString,
+            labels: &CxxString,
+        ) -> Result<SharedPtr<VerticesCollection>>;
+        fn vertices_collection_with_labels(
+            graph_info: &SharedPtr<GraphInfo>,
+            type_: &CxxString,
+            labels: &CxxVector<CxxString>,
+        ) -> Result<SharedPtr<VerticesCollection>>;
+        fn vertices_collection_with_property(
+            graph_info: &SharedPtr<GraphInfo>,
+            type_: &CxxString,
+            property_name: &CxxString,
+            filter: &SharedPtr<Expression>,
+        ) -> Result<SharedPtr<VerticesCollection>>;
+        // TODO(more static function)
     }
 
     #[namespace = "graphar"]
     unsafe extern "C++" {
         type EdgesCollection;
+
+        fn size(&self) -> usize;
+    }
+    #[namespace = "graphar_rs"]
+    unsafe extern "C++" {
+        fn edges_collection_begin(collection: Pin<&mut EdgesCollection>) -> UniquePtr<EdgeIter>;
+        fn edges_collection_end(collection: Pin<&mut EdgesCollection>) -> UniquePtr<EdgeIter>;
+        fn edges_collection_find_src(
+            collection: Pin<&mut EdgesCollection>,
+            id: i64,
+            from: &EdgeIter,
+        ) -> UniquePtr<EdgeIter>;
+        fn edges_collection_find_dst(
+            collection: Pin<&mut EdgesCollection>,
+            id: i64,
+            from: &EdgeIter,
+        ) -> UniquePtr<EdgeIter>;
+        fn edges_collection_make(
+            graph_info: &SharedPtr<GraphInfo>,
+            src_type: &CxxString,
+            edge_type: &CxxString,
+            dst_type: &CxxString,
+            adj_list_type: AdjListType,
+            vertex_chunk_begin: i64,
+            vertex_chunk_end: i64,
+        ) -> Result<SharedPtr<EdgesCollection>>;
     }
 }
 

@@ -113,9 +113,6 @@ void edges_dump(graphar::builder::EdgesBuilder &builder);
 
 // VertexIter
 graphar::IdType vertex_iter_id(graphar::VertexIter &iter);
-void vertex_iter_next(graphar::VertexIter &iter);
-bool vertex_iter_has_label(graphar::VertexIter &iter, const std::string &label);
-rust::Vec<rust::String> vertex_iter_labels(graphar::VertexIter &iter);
 bool vertex_iter_property_bool(graphar::VertexIter &iter,
                                const std::string &name);
 int32_t vertex_iter_property_i32(graphar::VertexIter &iter,
@@ -128,6 +125,10 @@ double vertex_iter_property_f64(graphar::VertexIter &iter,
                                 const std::string &name);
 rust::String vertex_iter_property_string(graphar::VertexIter &iter,
                                          const std::string &name);
+bool vertex_iter_has_label(graphar::VertexIter &iter, const std::string &label);
+std::unique_ptr<std::vector<std::string>>
+vertex_iter_labels(graphar::VertexIter &iter);
+void vertex_iter_next(graphar::VertexIter &iter);
 
 // EdgeIter
 graphar::IdType edge_iter_source(graphar::EdgeIter &iter);
@@ -178,5 +179,72 @@ std::unique_ptr<std::vector<graphar::IdType>>
 filter_by_property_name(graphar::VerticesCollection &vc,
                         const std::string &property_name,
                         std::shared_ptr<graphar::Expression> filter_expr);
+
+std::shared_ptr<graphar::VerticesCollection> vertices_collection_with_label(
+    const std::shared_ptr<graphar::GraphInfo> &graph_info,
+    const std::string &type, const std::string &label);
+std::shared_ptr<graphar::VerticesCollection> vertices_collection_with_labels(
+    const std::shared_ptr<graphar::GraphInfo> &graph_info,
+    const std::string &type, const std::vector<std::string> &labels);
+std::shared_ptr<graphar::VerticesCollection> vertices_collection_with_property(
+    const std::shared_ptr<graphar::GraphInfo> &graph_info,
+    const std::string &type, const std::string &property_name,
+    const std::shared_ptr<graphar::Expression> &filter);
+
+// EdgesCollection
+std::unique_ptr<graphar::EdgeIter>
+edges_collection_begin(graphar::EdgesCollection &collection);
+std::unique_ptr<graphar::EdgeIter>
+edges_collection_end(graphar::EdgesCollection &collection);
+std::unique_ptr<graphar::EdgeIter>
+edges_collection_find_src(graphar::EdgesCollection &collection,
+                          graphar::IdType id, const graphar::EdgeIter &from);
+std::unique_ptr<graphar::EdgeIter>
+edges_collection_find_dst(graphar::EdgesCollection &collection,
+                          graphar::IdType id, const graphar::EdgeIter &from);
+std::shared_ptr<graphar::EdgesCollection> edges_collection_make(
+    const std::shared_ptr<graphar::GraphInfo> &graph_info,
+    const std::string &src_type, const std::string &edge_type,
+    const std::string &dst_type, graphar::AdjListType adj_list_type,
+    graphar::IdType vertex_chunk_begin, graphar::IdType vertex_chunk_end);
+
+// Expression helpers
+std::shared_ptr<graphar::Expression>
+expression_property(const std::string &name);
+std::shared_ptr<graphar::Expression>
+expression_property_by_property(const graphar::Property &property);
+std::shared_ptr<graphar::Expression> expression_literal_bool(bool value);
+std::shared_ptr<graphar::Expression> expression_literal_i32(int32_t value);
+std::shared_ptr<graphar::Expression> expression_literal_i64(int64_t value);
+std::shared_ptr<graphar::Expression> expression_literal_f32(float value);
+std::shared_ptr<graphar::Expression> expression_literal_f64(double value);
+std::shared_ptr<graphar::Expression>
+expression_literal_string(const std::string &value);
+std::shared_ptr<graphar::Expression>
+expression_equal(const std::shared_ptr<graphar::Expression> &lhs,
+                 const std::shared_ptr<graphar::Expression> &rhs);
+std::shared_ptr<graphar::Expression>
+expression_not_equal(const std::shared_ptr<graphar::Expression> &lhs,
+                     const std::shared_ptr<graphar::Expression> &rhs);
+std::shared_ptr<graphar::Expression>
+expression_greater_than(const std::shared_ptr<graphar::Expression> &lhs,
+                        const std::shared_ptr<graphar::Expression> &rhs);
+std::shared_ptr<graphar::Expression>
+expression_greater_equal(const std::shared_ptr<graphar::Expression> &lhs,
+                         const std::shared_ptr<graphar::Expression> &rhs);
+std::shared_ptr<graphar::Expression>
+expression_less_than(const std::shared_ptr<graphar::Expression> &lhs,
+                     const std::shared_ptr<graphar::Expression> &rhs);
+std::shared_ptr<graphar::Expression>
+expression_less_equal(const std::shared_ptr<graphar::Expression> &lhs,
+                      const std::shared_ptr<graphar::Expression> &rhs);
+std::shared_ptr<graphar::Expression>
+expression_and(const std::shared_ptr<graphar::Expression> &lhs,
+               const std::shared_ptr<graphar::Expression> &rhs);
+std::shared_ptr<graphar::Expression>
+expression_or(const std::shared_ptr<graphar::Expression> &lhs,
+              const std::shared_ptr<graphar::Expression> &rhs);
+std::shared_ptr<graphar::Expression>
+expression_not(const std::shared_ptr<graphar::Expression> &expr);
 
 } // namespace graphar_rs

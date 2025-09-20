@@ -261,25 +261,6 @@ void edges_dump(graphar::builder::EdgesBuilder &builder) {
 // VertexIter
 graphar::IdType vertex_iter_id(graphar::VertexIter &iter) { return iter.id(); }
 
-void vertex_iter_next(graphar::VertexIter &iter) { ++iter; }
-
-bool vertex_iter_has_label(graphar::VertexIter &iter,
-                           const std::string &label) {
-  auto result = iter.hasLabel(label);
-  return ValueOrThrow(std::move(result));
-}
-
-rust::Vec<rust::String> vertex_iter_labels(graphar::VertexIter &iter) {
-  auto result = iter.label();
-  auto labels = ValueOrThrow(std::move(result));
-  rust::Vec<rust::String> out;
-  out.reserve(labels.size());
-  for (auto const &label : labels) {
-    out.push_back(rust::String(label));
-  }
-  return out;
-}
-
 namespace {
 
 template <typename T>
@@ -321,6 +302,20 @@ rust::String vertex_iter_property_string(graphar::VertexIter &iter,
   return rust::String(VertexPropertyOrThrow<std::string>(iter, name));
 }
 
+bool vertex_iter_has_label(graphar::VertexIter &iter,
+                           const std::string &label) {
+  auto result = iter.hasLabel(label);
+  return ValueOrThrow(std::move(result));
+}
+
+std::unique_ptr<std::vector<std::string>>
+vertex_iter_labels(graphar::VertexIter &iter) {
+  auto result = iter.label();
+  auto labels = ValueOrThrow(std::move(result));
+  return std::make_unique<std::vector<std::string>>(labels);
+}
+
+void vertex_iter_next(graphar::VertexIter &iter) { ++iter; }
 namespace {
 
 template <typename T>
@@ -330,25 +325,6 @@ T EdgePropertyOrThrow(graphar::EdgeIter &iter, const std::string &name) {
   return ValueOrThrow(std::move(result));
 }
 
-template <typename T, typename Pred>
-auto vector_from_vec(const rust::Vec<T> &vec, Pred pred) {
-  auto size = vec.size();
-  auto out = std::vector<decltype(pred(vec[0]))>(size);
-  for (size_t i = 0; i < size; i++) {
-    out[i] = pred(vec[i]);
-  }
-  return out;
-}
-
-template <typename T, typename Pred>
-auto vec_from_vector(const std::vector<T> &vec, Pred pred) {
-  auto size = vec.size();
-  auto out = rust::Vec<decltype(pred(vec[0]))>(size);
-  for (size_t i = 0; i < size; i++) {
-    out[i] = pred(vec[i]);
-  }
-  return out;
-}
 } // namespace
 
 bool edge_iter_property_bool(graphar::EdgeIter &iter, const std::string &name) {
@@ -393,17 +369,16 @@ bool edge_iter_next_dst_with_id(graphar::EdgeIter &iter, graphar::IdType id) {
   return iter.next_dst(id);
 }
 
-// VerticeCollection
+// VerticesCollection helpers
 std::shared_ptr<graphar::VerticesCollection>
 vertices_collection_make(const std::shared_ptr<graphar::GraphInfo> &graph_info,
                          const std::string &type) {
-  return ValueOrThrow<std::shared_ptr<graphar::VerticesCollection>>(
-      graphar::VerticesCollection::Make(graph_info, type));
+  return ValueOrThrow(graphar::VerticesCollection::Make(graph_info, type));
 }
 
 std::unique_ptr<graphar::VertexIter>
-vertices_collection_begin(graphar::VerticesCollection &vc) {
-  return std::make_unique<graphar::VertexIter>(vc.begin());
+vertices_collection_begin(graphar::VerticesCollection &collection) {
+  return std::make_unique<graphar::VertexIter>(collection.begin());
 }
 
 std::unique_ptr<graphar::VertexIter>
@@ -455,6 +430,140 @@ filter_by_property_name(graphar::VerticesCollection &vc,
                         std::shared_ptr<graphar::Expression> filter_expr) {
   auto res = ValueOrThrow(vc.filter(property_name, filter_expr));
   return std::make_unique<std::vector<graphar::IdType>>(res);
+}
+
+std::shared_ptr<graphar::VerticesCollection> vertices_collection_with_label(
+    const std::shared_ptr<graphar::GraphInfo> &graph_info,
+    const std::string &type, const std::string &label) {
+  return ValueOrThrow(
+      graphar::VerticesCollection::verticesWithLabel(label, graph_info, type));
+}
+
+std::shared_ptr<graphar::VerticesCollection> vertices_collection_with_labels(
+    const std::shared_ptr<graphar::GraphInfo> &graph_info,
+    const std::string &type, const std::vector<std::string> &labels) {
+  return ValueOrThrow(graphar::VerticesCollection::verticesWithMultipleLabels(
+      labels, graph_info, type));
+}
+
+std::shared_ptr<graphar::VerticesCollection> vertices_collection_with_property(
+    const std::shared_ptr<graphar::GraphInfo> &graph_info,
+    const std::string &type, const std::string &property_name,
+    const std::shared_ptr<graphar::Expression> &filter) {
+  return ValueOrThrow(graphar::VerticesCollection::verticesWithProperty(
+      property_name, filter, graph_info, type));
+}
+
+// EdgesCollection helpers
+std::unique_ptr<graphar::EdgeIter>
+edges_collection_begin(graphar::EdgesCollection &collection) {
+  return std::make_unique<graphar::EdgeIter>(collection.begin());
+}
+
+std::unique_ptr<graphar::EdgeIter>
+edges_collection_end(graphar::EdgesCollection &collection) {
+  return std::make_unique<graphar::EdgeIter>(collection.end());
+}
+
+std::unique_ptr<graphar::EdgeIter>
+edges_collection_find_src(graphar::EdgesCollection &collection,
+                          graphar::IdType id, const graphar::EdgeIter &from) {
+  return std::make_unique<graphar::EdgeIter>(collection.find_src(id, from));
+}
+
+std::unique_ptr<graphar::EdgeIter>
+edges_collection_find_dst(graphar::EdgesCollection &collection,
+                          graphar::IdType id, const graphar::EdgeIter &from) {
+  return std::make_unique<graphar::EdgeIter>(collection.find_dst(id, from));
+}
+
+std::shared_ptr<graphar::EdgesCollection> edges_collection_make(
+    const std::shared_ptr<graphar::GraphInfo> &graph_info,
+    const std::string &src_type, const std::string &edge_type,
+    const std::string &dst_type, graphar::AdjListType adj_list_type,
+    graphar::IdType vertex_chunk_begin, graphar::IdType vertex_chunk_end) {
+  return ValueOrThrow(graphar::EdgesCollection::Make(
+      graph_info, src_type, edge_type, dst_type, adj_list_type,
+      vertex_chunk_begin, vertex_chunk_end));
+}
+
+std::shared_ptr<graphar::Expression>
+expression_property(const std::string &name) {
+  return graphar::_Property(name);
+}
+
+std::shared_ptr<graphar::Expression> expression_literal_bool(bool value) {
+  return graphar::_Literal(value);
+}
+
+std::shared_ptr<graphar::Expression> expression_literal_i32(int32_t value) {
+  return graphar::_Literal(value);
+}
+
+std::shared_ptr<graphar::Expression> expression_literal_i64(int64_t value) {
+  return graphar::_Literal(value);
+}
+
+std::shared_ptr<graphar::Expression> expression_literal_f64(double value) {
+  return graphar::_Literal(value);
+}
+
+std::shared_ptr<graphar::Expression>
+expression_literal_string(const std::string &value) {
+  return graphar::_Literal(value);
+}
+
+std::shared_ptr<graphar::Expression>
+expression_equal(const std::shared_ptr<graphar::Expression> &lhs,
+                 const std::shared_ptr<graphar::Expression> &rhs) {
+  return graphar::_Equal(lhs, rhs);
+}
+
+std::shared_ptr<graphar::Expression>
+expression_not_equal(const std::shared_ptr<graphar::Expression> &lhs,
+                     const std::shared_ptr<graphar::Expression> &rhs) {
+  return graphar::_NotEqual(lhs, rhs);
+}
+
+std::shared_ptr<graphar::Expression>
+expression_greater_than(const std::shared_ptr<graphar::Expression> &lhs,
+                        const std::shared_ptr<graphar::Expression> &rhs) {
+  return graphar::_GreaterThan(lhs, rhs);
+}
+
+std::shared_ptr<graphar::Expression>
+expression_greater_equal(const std::shared_ptr<graphar::Expression> &lhs,
+                         const std::shared_ptr<graphar::Expression> &rhs) {
+  return graphar::_GreaterEqual(lhs, rhs);
+}
+
+std::shared_ptr<graphar::Expression>
+expression_less_than(const std::shared_ptr<graphar::Expression> &lhs,
+                     const std::shared_ptr<graphar::Expression> &rhs) {
+  return graphar::_LessThan(lhs, rhs);
+}
+
+std::shared_ptr<graphar::Expression>
+expression_less_equal(const std::shared_ptr<graphar::Expression> &lhs,
+                      const std::shared_ptr<graphar::Expression> &rhs) {
+  return graphar::_LessEqual(lhs, rhs);
+}
+
+std::shared_ptr<graphar::Expression>
+expression_and(const std::shared_ptr<graphar::Expression> &lhs,
+               const std::shared_ptr<graphar::Expression> &rhs) {
+  return graphar::_And(lhs, rhs);
+}
+
+std::shared_ptr<graphar::Expression>
+expression_or(const std::shared_ptr<graphar::Expression> &lhs,
+              const std::shared_ptr<graphar::Expression> &rhs) {
+  return graphar::_Or(lhs, rhs);
+}
+
+std::shared_ptr<graphar::Expression>
+expression_not(const std::shared_ptr<graphar::Expression> &expr) {
+  return graphar::_Not(expr);
 }
 
 } // namespace graphar_rs
