@@ -3,6 +3,10 @@ use std::path::{Path, PathBuf};
 fn link_libraries() {
     // build from source should enable this
     // println!("cargo:rustc-link-lib=static=graphar_bundled_dependencies");
+    println!("cargo:rustc-link-search=native=/usr/lib/x86_64-linux-gnu/");
+    println!("cargo:rustc-link-lib=dylib=arrow_compute");
+    println!("cargo:rustc-link-lib=dylib=arrow");
+
     println!("cargo:rustc-link-lib=graphar");
 }
 

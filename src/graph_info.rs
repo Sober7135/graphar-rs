@@ -1,21 +1,18 @@
 // Currently do not support cardinality
 
-use std::{cell::UnsafeCell, path::Path};
+use std::path::Path;
 
 use cxx::{CxxString, CxxVector, SharedPtr, UniquePtr, let_cxx_string};
 
 use crate::ffi::{
     self,
-    ffi::{
+    graphar::{
         Cardinality, CreateAdjacentList, CreateEdgeInfo, CreatePropertyGroup, boolean,
-        create_vertex_info, date, edge_add_property_bool, edge_info_dump, edge_info_save,
-        edges_dump, float32, float64, graph_info_dump, graph_info_save, int32, int64, list,
-        load_graph_info, new_adjacent_list_vec, new_const_info_version, new_edges_builder,
-        new_properties, new_property_group_vec, new_vertex, new_vertices_builder,
+        create_vertex_info, date, edge_info_dump, edge_info_save, float32, float64,
+        graph_info_dump, graph_info_save, int32, int64, list, load_graph_info,
+        new_adjacent_list_vec, new_const_info_version, new_properties, new_property_group_vec,
         push_adjacent_list, push_property, push_property_group, string, timestamp,
-        vertex_add_property_bool, vertex_add_property_f32, vertex_add_property_f64,
-        vertex_add_property_i32, vertex_add_property_i64, vertex_add_property_string,
-        vertex_info_dump, vertex_info_save, vertices_dump,
+        vertex_info_dump, vertex_info_save,
     },
 };
 
@@ -39,107 +36,7 @@ pub enum DataType {
     UserDefined,
 }
 
-pub trait SupportedDataType<T> {
-    fn vertex_add_property(vertex: &mut Vertex, name: &str, val: T);
-    fn edge_add_property(edge: &mut Edge, name: &str, val: T);
-}
-
-impl SupportedDataType<bool> for () {
-    fn vertex_add_property(vertex: &mut Vertex, name: &str, val: bool) {
-        let_cxx_string!(name = name);
-        vertex_add_property_bool(vertex.inner.get_mut().pin_mut(), &name, val);
-    }
-
-    fn edge_add_property(edge: &mut Edge, name: &str, val: bool) {
-        let_cxx_string!(name = name);
-        edge_add_property_bool(edge.inner.get_mut().pin_mut(), &name, val);
-    }
-}
-
-impl SupportedDataType<i32> for () {
-    fn vertex_add_property(vertex: &mut Vertex, name: &str, val: i32) {
-        let_cxx_string!(name = name);
-        vertex_add_property_i32(vertex.inner.get_mut().pin_mut(), &name, val);
-    }
-
-    fn edge_add_property(edge: &mut Edge, name: &str, val: i32) {
-        let_cxx_string!(name = name);
-        ffi::ffi::edge_add_property_i32(edge.inner.get_mut().pin_mut(), &name, val);
-    }
-}
-
-impl SupportedDataType<i64> for () {
-    fn vertex_add_property(vertex: &mut Vertex, name: &str, val: i64) {
-        let_cxx_string!(name = name);
-        vertex_add_property_i64(vertex.inner.get_mut().pin_mut(), &name, val);
-    }
-
-    fn edge_add_property(edge: &mut Edge, name: &str, val: i64) {
-        let_cxx_string!(name = name);
-        ffi::ffi::edge_add_property_i64(edge.inner.get_mut().pin_mut(), &name, val);
-    }
-}
-
-impl SupportedDataType<f32> for () {
-    fn vertex_add_property(vertex: &mut Vertex, name: &str, val: f32) {
-        let_cxx_string!(name = name);
-        vertex_add_property_f32(vertex.inner.get_mut().pin_mut(), &name, val);
-    }
-
-    fn edge_add_property(edge: &mut Edge, name: &str, val: f32) {
-        let_cxx_string!(name = name);
-        ffi::ffi::edge_add_property_f32(edge.inner.get_mut().pin_mut(), &name, val);
-    }
-}
-
-impl SupportedDataType<f64> for () {
-    fn vertex_add_property(vertex: &mut Vertex, name: &str, val: f64) {
-        let_cxx_string!(name = name);
-        vertex_add_property_f64(vertex.inner.get_mut().pin_mut(), &name, val);
-    }
-
-    fn edge_add_property(edge: &mut Edge, name: &str, val: f64) {
-        let_cxx_string!(name = name);
-        ffi::ffi::edge_add_property_f64(edge.inner.get_mut().pin_mut(), &name, val);
-    }
-}
-
-impl SupportedDataType<String> for () {
-    fn vertex_add_property(vertex: &mut Vertex, name: &str, val: String) {
-        let_cxx_string!(name = name);
-        let_cxx_string!(val = val);
-        vertex_add_property_string(vertex.inner.get_mut().pin_mut(), &name, &val);
-    }
-
-    fn edge_add_property(edge: &mut Edge, name: &str, val: String) {
-        let_cxx_string!(name = name);
-        let_cxx_string!(val = val);
-        ffi::ffi::edge_add_property_string(edge.inner.get_mut().pin_mut(), &name, &val);
-    }
-}
-
-impl<T> SupportedDataType<Vec<T>> for ()
-where
-    (): SupportedDataType<T>,
-{
-    fn vertex_add_property(_vertex: &mut Vertex, _name: &str, _val: Vec<T>) {
-        todo!()
-    }
-
-    fn edge_add_property(_edge: &mut Edge, _name: &str, _val: Vec<T>) {
-        todo!()
-    }
-}
-// TODO(date, timestamp)
-
-fn vertex_add_property<T, S: AsRef<str>>(vertex: &mut Vertex, name: S, val: T)
-where
-    (): SupportedDataType<T>,
-{
-    <() as SupportedDataType<T>>::vertex_add_property(vertex, name.as_ref(), val);
-}
-
-impl From<DataType> for SharedPtr<ffi::ffi::DataType> {
+impl From<DataType> for SharedPtr<ffi::graphar::DataType> {
     fn from(value: DataType) -> Self {
         match value {
             DataType::Bool => boolean().clone(),
@@ -167,13 +64,13 @@ pub enum FileType {
     Json,
 }
 
-impl From<FileType> for ffi::ffi::FileType {
+impl From<FileType> for ffi::graphar::FileType {
     fn from(value: FileType) -> Self {
         match value {
-            FileType::Csv => ffi::ffi::FileType::CSV,
-            FileType::Parquet => ffi::ffi::FileType::PARQUET,
-            FileType::Orc => ffi::ffi::FileType::ORC,
-            FileType::Json => ffi::ffi::FileType::JSON,
+            FileType::Csv => ffi::graphar::FileType::CSV,
+            FileType::Parquet => ffi::graphar::FileType::PARQUET,
+            FileType::Orc => ffi::graphar::FileType::ORC,
+            FileType::Json => ffi::graphar::FileType::JSON,
         }
     }
 }
@@ -186,13 +83,13 @@ pub enum AdjListType {
     OrderedByDest,
 }
 
-impl From<AdjListType> for ffi::ffi::AdjListType {
+impl From<AdjListType> for ffi::graphar::AdjListType {
     fn from(value: AdjListType) -> Self {
         match value {
-            AdjListType::UnorderedBySource => ffi::ffi::AdjListType::unordered_by_source,
-            AdjListType::UnorderedByDest => ffi::ffi::AdjListType::unordered_by_dest,
-            AdjListType::OrderedBySource => ffi::ffi::AdjListType::ordered_by_source,
-            AdjListType::OrderedByDest => ffi::ffi::AdjListType::ordered_by_dest,
+            AdjListType::UnorderedBySource => ffi::graphar::AdjListType::unordered_by_source,
+            AdjListType::UnorderedByDest => ffi::graphar::AdjListType::unordered_by_dest,
+            AdjListType::OrderedBySource => ffi::graphar::AdjListType::ordered_by_source,
+            AdjListType::OrderedByDest => ffi::graphar::AdjListType::ordered_by_dest,
         }
     }
 }
@@ -205,9 +102,8 @@ pub struct Property {
     pub is_nullable: bool,
 }
 
-#[derive(Debug)]
 pub struct PropertyVec {
-    inner: UnsafeCell<UniquePtr<CxxVector<ffi::ffi::Property>>>,
+    inner: UniquePtr<CxxVector<ffi::graphar::Property>>,
 }
 
 impl Default for PropertyVec {
@@ -219,14 +115,14 @@ impl Default for PropertyVec {
 impl PropertyVec {
     pub fn new() -> Self {
         Self {
-            inner: UnsafeCell::new(new_properties()),
+            inner: new_properties(),
         }
     }
 
     pub fn add_property(&mut self, property: Property) {
         let_cxx_string!(name = property.name);
         push_property(
-            self.inner.get_mut().pin_mut(),
+            self.inner.pin_mut(),
             &name,
             &property.data_type.into(),
             property.is_primary,
@@ -236,23 +132,20 @@ impl PropertyVec {
     }
 }
 
-#[derive(Debug)]
 pub struct PropertyGroup {
-    inner: UnsafeCell<SharedPtr<ffi::ffi::PropertyGroup>>,
+    inner: SharedPtr<ffi::graphar::PropertyGroup>,
 }
 
 impl PropertyGroup {
     pub fn new<P: AsRef<Path>>(properties: PropertyVec, file_type: FileType, prefix: P) -> Self {
         let prefix_string = prefix.as_ref().to_string_lossy().into_owned();
         let_cxx_string!(prefix = prefix_string);
-        let properties_vec = properties.inner.into_inner();
+        let properties_vec = properties.inner;
         let props = properties_vec
             .as_ref()
             .expect("properties vec should be valid");
         let inner = CreatePropertyGroup(props, file_type.into(), &prefix);
-        Self {
-            inner: UnsafeCell::new(inner),
-        }
+        Self { inner }
     }
 
     // TODO(get_properties)
@@ -260,13 +153,12 @@ impl PropertyGroup {
     pub fn has_property(&self, property_name: &str) -> bool {
         let_cxx_string!(name = property_name);
 
-        unsafe { (&*self.inner.get()).HasProperty(&name) }
+        self.inner.HasProperty(&name)
     }
 }
 
-#[derive(Debug)]
 pub struct PropertyGroupVector {
-    inner: UnsafeCell<UniquePtr<ffi::ffi::PropertyGroupVector>>,
+    inner: UniquePtr<ffi::graphar::PropertyGroupVector>,
 }
 
 impl Default for PropertyGroupVector {
@@ -278,27 +170,23 @@ impl Default for PropertyGroupVector {
 impl PropertyGroupVector {
     pub fn new() -> Self {
         Self {
-            inner: UnsafeCell::new(new_property_group_vec()),
+            inner: new_property_group_vec(),
         }
     }
 
     pub fn add_property_group(&mut self, property_group: PropertyGroup) {
-        push_property_group(
-            self.inner.get_mut().pin_mut(),
-            property_group.inner.into_inner(),
-        )
+        push_property_group(self.inner.pin_mut(), property_group.inner)
     }
 }
 
-#[derive(Debug)]
 pub struct InfoVersion {
-    inner: UnsafeCell<SharedPtr<ffi::ffi::ConstInfoVersion>>,
+    inner: SharedPtr<ffi::graphar::ConstInfoVersion>,
 }
 
 impl Clone for InfoVersion {
     fn clone(&self) -> Self {
         Self {
-            inner: UnsafeCell::new(unsafe { (*self.inner.get()).clone() }),
+            inner: self.inner.clone(),
         }
     }
 }
@@ -306,14 +194,13 @@ impl Clone for InfoVersion {
 impl InfoVersion {
     pub fn new(version: i32) -> anyhow::Result<Self> {
         Ok(Self {
-            inner: UnsafeCell::new(new_const_info_version(version)?),
+            inner: new_const_info_version(version)?,
         })
     }
 }
 
-#[derive(Debug)]
 pub struct VertexInfo {
-    inner: UnsafeCell<SharedPtr<ffi::ffi::VertexInfo>>,
+    pub(crate) inner: SharedPtr<ffi::graphar::VertexInfo>,
 }
 
 impl VertexInfo {
@@ -327,7 +214,7 @@ impl VertexInfo {
         version: InfoVersion,
     ) -> Self {
         let inner = {
-            let groups = property_groups.inner.into_inner();
+            let groups = property_groups.inner;
             let groups_ref = groups.as_ref().expect("property group vec should be valid");
             let prefix_string = prefix.as_ref().to_string_lossy().into_owned();
             create_vertex_info(
@@ -336,88 +223,26 @@ impl VertexInfo {
                 groups_ref,
                 &labels,
                 &prefix_string,
-                version.inner.into_inner(),
+                version.inner,
             )
         };
-        Self {
-            inner: UnsafeCell::new(inner),
-        }
+        Self { inner }
     }
 
     pub fn save<P: AsRef<Path>>(&self, path: P) -> anyhow::Result<()> {
         let path_string = path.as_ref().to_string_lossy().into_owned();
         let_cxx_string!(path = path_string);
-        vertex_info_save(unsafe { &*self.inner.get() }, &path)?;
+        vertex_info_save(&self.inner, &path)?;
         Ok(())
     }
 
     pub fn dump(&self) -> anyhow::Result<String> {
-        Ok(vertex_info_dump(unsafe { &*self.inner.get() }).map(|inner| inner.to_string())?)
+        Ok(vertex_info_dump(&self.inner).map(|inner| inner.to_string())?)
     }
 }
 
-#[derive(Debug)]
-pub struct Vertex {
-    inner: UnsafeCell<UniquePtr<ffi::ffi::Vertex>>,
-}
-
-impl Default for Vertex {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl Vertex {
-    pub fn new() -> Self {
-        Self {
-            inner: UnsafeCell::new(new_vertex()),
-        }
-    }
-
-    pub fn add_property<T>(&mut self, name: String, property: T)
-    where
-        (): SupportedDataType<T>,
-    {
-        vertex_add_property(self, &name, property);
-    }
-}
-
-#[derive(Debug)]
-pub struct VerticesBuilder {
-    inner: UnsafeCell<SharedPtr<ffi::ffi::VerticesBuilder>>,
-}
-
-impl VerticesBuilder {
-    pub fn new<P: AsRef<Path>>(
-        vertex_info: &VertexInfo,
-        path_prefix: P,
-        start_idx: i64,
-    ) -> anyhow::Result<Self> {
-        let prefix_string = path_prefix.as_ref().to_string_lossy().into_owned();
-        let_cxx_string!(prefix = prefix_string);
-        let inner = unsafe { &*vertex_info.inner.get() };
-        Ok(Self {
-            inner: UnsafeCell::new(new_vertices_builder(inner, &prefix, start_idx)?),
-        })
-    }
-
-    pub fn add_vertex(&mut self, mut vertex: Vertex) -> anyhow::Result<()> {
-        let builder = self.inner.get_mut();
-        let v = vertex.inner.get_mut();
-        unsafe { ffi::ffi::add_vertex(builder.pin_mut_unchecked(), v.pin_mut())? };
-        Ok(())
-    }
-
-    pub fn dump(&mut self) -> anyhow::Result<()> {
-        let builder = self.inner.get_mut();
-        unsafe { vertices_dump(builder.pin_mut_unchecked())? };
-        Ok(())
-    }
-}
-
-#[derive(Debug)]
 pub struct GraphInfo {
-    inner: UnsafeCell<SharedPtr<ffi::ffi::GraphInfo>>,
+    inner: SharedPtr<ffi::graphar::GraphInfo>,
 }
 
 impl GraphInfo {
@@ -435,17 +260,15 @@ impl GraphInfo {
         let path_string = path.as_ref().to_string_lossy().into_owned();
         let_cxx_string!(p = path_string);
         let inner = load_graph_info(&p)?;
-        Ok(Self {
-            inner: UnsafeCell::new(inner),
-        })
+        Ok(Self { inner })
     }
 
     pub fn name(&self) -> String {
-        cxx_string_to_string(unsafe { (&*self.inner.get()).GetName() })
+        cxx_string_to_string(self.inner.GetName())
     }
 
     pub fn labels(&self) -> Vec<String> {
-        let v = unsafe { (&*self.inner.get()).GetLabels() };
+        let v = self.inner.GetLabels();
         let mut out = Vec::with_capacity(v.len());
         for cxx_string in v.iter() {
             out.push(cxx_string_to_string(cxx_string));
@@ -454,39 +277,36 @@ impl GraphInfo {
     }
 
     pub fn prefix(&self) -> String {
-        cxx_string_to_string(unsafe { (&*self.inner.get()).GetPrefix() })
+        cxx_string_to_string(self.inner.GetPrefix())
     }
 
     pub fn version(&self) -> InfoVersion {
-        let sp = unsafe { (&*self.inner.get()).version() };
-        InfoVersion {
-            inner: UnsafeCell::new(sp.clone()),
-        }
+        let sp = self.inner.version();
+        InfoVersion { inner: sp.clone() }
     }
 
     pub fn vertex_info_num(&self) -> i32 {
-        unsafe { (&*self.inner.get()).VertexInfoNum() }
+        self.inner.VertexInfoNum()
     }
 
     pub fn edge_info_num(&self) -> i32 {
-        unsafe { (&*self.inner.get()).EdgeInfoNum() }
+        self.inner.EdgeInfoNum()
     }
 
     pub fn save<P: AsRef<Path>>(&self, path: P) -> anyhow::Result<()> {
         let path_string = path.as_ref().to_string_lossy().into_owned();
         let_cxx_string!(p = path_string);
-        graph_info_save(unsafe { &*self.inner.get() }, &p)?;
+        graph_info_save(&self.inner, &p)?;
         Ok(())
     }
 
     pub fn dump(&self) -> anyhow::Result<String> {
-        Ok(graph_info_dump(unsafe { &*self.inner.get() }).map(|u| u.to_string())?)
+        Ok(graph_info_dump(&self.inner).map(|u| u.to_string())?)
     }
 }
 
-#[derive(Debug)]
 pub struct AdjacentList {
-    inner: UnsafeCell<SharedPtr<ffi::ffi::AdjacentList>>,
+    inner: SharedPtr<ffi::graphar::AdjacentList>,
 }
 
 impl AdjacentList {
@@ -494,39 +314,36 @@ impl AdjacentList {
         let prefix_string = path_prefix.as_ref().to_string_lossy().into_owned();
         let_cxx_string!(prefix = prefix_string);
         let inner = CreateAdjacentList(ty.into(), file_type.into(), &prefix);
-        Self {
-            inner: UnsafeCell::new(inner),
-        }
+        Self { inner }
     }
 
     pub fn list_type(&self) -> AdjListType {
-        match unsafe { (&*self.inner.get()).GetType() } {
-            ffi::ffi::AdjListType::unordered_by_source => AdjListType::UnorderedBySource,
-            ffi::ffi::AdjListType::unordered_by_dest => AdjListType::UnorderedByDest,
-            ffi::ffi::AdjListType::ordered_by_source => AdjListType::OrderedBySource,
-            ffi::ffi::AdjListType::ordered_by_dest => AdjListType::OrderedByDest,
+        match self.inner.GetType() {
+            ffi::graphar::AdjListType::unordered_by_source => AdjListType::UnorderedBySource,
+            ffi::graphar::AdjListType::unordered_by_dest => AdjListType::UnorderedByDest,
+            ffi::graphar::AdjListType::ordered_by_source => AdjListType::OrderedBySource,
+            ffi::graphar::AdjListType::ordered_by_dest => AdjListType::OrderedByDest,
             _ => unreachable!(),
         }
     }
 
     pub fn file_type(&self) -> FileType {
-        match unsafe { (&*self.inner.get()).GetFileType() } {
-            ffi::ffi::FileType::CSV => FileType::Csv,
-            ffi::ffi::FileType::PARQUET => FileType::Parquet,
-            ffi::ffi::FileType::ORC => FileType::Orc,
-            ffi::ffi::FileType::JSON => FileType::Json,
+        match self.inner.GetFileType() {
+            ffi::graphar::FileType::CSV => FileType::Csv,
+            ffi::graphar::FileType::PARQUET => FileType::Parquet,
+            ffi::graphar::FileType::ORC => FileType::Orc,
+            ffi::graphar::FileType::JSON => FileType::Json,
             _ => unreachable!(),
         }
     }
 
     pub fn prefix(&self) -> String {
-        cxx_string_to_string(unsafe { (&*self.inner.get()).GetPrefix() })
+        cxx_string_to_string(self.inner.GetPrefix())
     }
 }
 
-#[derive(Debug)]
 pub struct AdjacentListVector {
-    inner: UnsafeCell<UniquePtr<ffi::ffi::AdjacentListVector>>,
+    inner: UniquePtr<ffi::graphar::AdjacentListVector>,
 }
 
 impl Default for AdjacentListVector {
@@ -538,20 +355,18 @@ impl Default for AdjacentListVector {
 impl AdjacentListVector {
     pub fn new() -> Self {
         Self {
-            inner: UnsafeCell::new(new_adjacent_list_vec()),
+            inner: new_adjacent_list_vec(),
         }
     }
 
     pub fn add_adjacent_list(&mut self, adj_list: AdjacentList) {
-        let vec = self.inner.get_mut();
-        let adj = adj_list.inner.into_inner();
-        push_adjacent_list(vec.pin_mut(), adj);
+        let adj = adj_list.inner;
+        push_adjacent_list(self.inner.pin_mut(), adj);
     }
 }
 
-#[derive(Debug)]
 pub struct EdgeInfo {
-    inner: UnsafeCell<SharedPtr<ffi::ffi::EdgeInfo>>,
+    pub(crate) inner: SharedPtr<ffi::graphar::EdgeInfo>,
 }
 
 impl EdgeInfo {
@@ -575,9 +390,9 @@ impl EdgeInfo {
         let prefix_string = path_prefix.as_ref().to_string_lossy().into_owned();
         let_cxx_string!(prefix = prefix_string);
 
-        let adj_vec = adjacent_lists.inner.into_inner();
+        let adj_vec = adjacent_lists.inner;
         let adj_ref = adj_vec.as_ref().expect("adjacent list vec should be valid");
-        let prop_vec = property_groups.inner.into_inner();
+        let prop_vec = property_groups.inner;
         let prop_ref = prop_vec
             .as_ref()
             .expect("property group vec should be valid");
@@ -593,111 +408,52 @@ impl EdgeInfo {
             adj_ref,
             prop_ref,
             &prefix,
-            version.inner.into_inner(),
+            version.inner,
         );
-        Self {
-            inner: UnsafeCell::new(inner),
-        }
+        Self { inner }
     }
 
     pub fn save<P: AsRef<Path>>(&self, path: P) -> anyhow::Result<()> {
         let path_string = path.as_ref().to_string_lossy().into_owned();
         let_cxx_string!(p = path_string);
-        edge_info_save(unsafe { &*self.inner.get() }, &p)?;
+        edge_info_save(&self.inner, &p)?;
         Ok(())
     }
 
     pub fn dump(&self) -> anyhow::Result<String> {
-        Ok(edge_info_dump(unsafe { &*self.inner.get() }).map(|u| u.to_string())?)
+        Ok(edge_info_dump(&self.inner).map(|u| u.to_string())?)
     }
 
     pub fn src_type(&self) -> String {
-        cxx_string_to_string(unsafe { (&*self.inner.get()).GetSrcType() })
+        cxx_string_to_string(self.inner.GetSrcType())
     }
     pub fn dst_type(&self) -> String {
-        cxx_string_to_string(unsafe { (&*self.inner.get()).GetDstType() })
+        cxx_string_to_string(self.inner.GetDstType())
     }
     pub fn edge_type(&self) -> String {
-        cxx_string_to_string(unsafe { (&*self.inner.get()).GetEdgeType() })
+        cxx_string_to_string(self.inner.GetEdgeType())
     }
     pub fn chunk_size(&self) -> i64 {
-        unsafe { (&*self.inner.get()).GetChunkSize() }
+        self.inner.GetChunkSize()
     }
     pub fn src_chunk_size(&self) -> i64 {
-        unsafe { (&*self.inner.get()).GetSrcChunkSize() }
+        self.inner.GetSrcChunkSize()
     }
     pub fn dst_chunk_size(&self) -> i64 {
-        unsafe { (&*self.inner.get()).GetDstChunkSize() }
+        self.inner.GetDstChunkSize()
     }
     pub fn prefix(&self) -> String {
-        cxx_string_to_string(unsafe { (&*self.inner.get()).GetPrefix() })
+        cxx_string_to_string(self.inner.GetPrefix())
     }
     pub fn directed(&self) -> bool {
-        unsafe { (&*self.inner.get()).IsDirected() }
-    }
-}
-
-#[derive(Debug)]
-pub struct Edge {
-    inner: UnsafeCell<UniquePtr<ffi::ffi::Edge>>,
-}
-
-impl Edge {
-    pub fn new(src_id: i64, dst_id: i64) -> Self {
-        Self {
-            inner: UnsafeCell::new(ffi::ffi::new_edge(src_id, dst_id)),
-        }
-    }
-
-    pub fn add_property<T>(&mut self, name: String, property: T)
-    where
-        (): SupportedDataType<T>,
-    {
-        <() as SupportedDataType<T>>::edge_add_property(self, &name, property);
-    }
-}
-
-#[derive(Debug)]
-pub struct EdgesBuilder {
-    inner: UnsafeCell<SharedPtr<ffi::ffi::EdgesBuilder>>,
-}
-
-impl EdgesBuilder {
-    pub fn new<P: AsRef<Path>>(
-        edge_info: &EdgeInfo,
-        path_prefix: P,
-        adj_list_type: AdjListType,
-        vertices_num: i64,
-    ) -> anyhow::Result<Self> {
-        let prefix_string = path_prefix.as_ref().to_string_lossy().into_owned();
-        let_cxx_string!(prefix = prefix_string);
-        let inner = new_edges_builder(
-            unsafe { &*edge_info.inner.get() },
-            &prefix,
-            adj_list_type.into(),
-            vertices_num,
-        )?;
-        Ok(Self {
-            inner: UnsafeCell::new(inner),
-        })
-    }
-
-    pub fn add_edge(&mut self, mut edge: Edge) -> anyhow::Result<()> {
-        let builder = self.inner.get_mut();
-        let e = edge.inner.get_mut();
-        unsafe { ffi::ffi::add_edge(builder.pin_mut_unchecked(), e.pin_mut())? };
-        Ok(())
-    }
-
-    pub fn dump(&mut self) -> anyhow::Result<()> {
-        let builder = self.inner.get_mut();
-        unsafe { edges_dump(builder.pin_mut_unchecked())? };
-        Ok(())
+        self.inner.IsDirected()
     }
 }
 
 #[cfg(test)]
 mod tests {
+
+    use crate::builder::{self, EdgesBuilder, VerticesBuilder};
 
     use super::*;
 
@@ -740,11 +496,11 @@ mod tests {
 
         // `VerticesBuilder` dump
         let mut vb = VerticesBuilder::new(&vertex_info, "/tmp/test_graphar/vertex/", 0).unwrap();
-        let mut alice = Vertex::new();
+        let mut alice = builder::Vertex::new();
         alice.add_property("id".into(), 1_i64);
         alice.add_property("name".into(), "alice".to_string());
 
-        let mut bob = Vertex::new();
+        let mut bob = builder::Vertex::new();
         bob.add_property("id".into(), 2_i64);
         bob.add_property("name".into(), "bob".to_string());
         vb.add_vertex(alice).unwrap();
@@ -795,7 +551,7 @@ mod tests {
             2,
         )
         .unwrap();
-        let mut e = Edge::new(1, 2);
+        let mut e = builder::Edge::new(1, 2);
         e.add_property("friend".into(), "bob".to_string());
         edge_builder.add_edge(e).unwrap();
         edge_builder.dump().unwrap();

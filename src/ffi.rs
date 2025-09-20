@@ -2,7 +2,7 @@
 
 #[allow(clippy::module_inception)]
 #[cxx::bridge]
-pub(crate) mod ffi {
+pub(crate) mod graphar {
     #[namespace = "graphar"]
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     #[repr(u32)]
@@ -183,22 +183,27 @@ pub(crate) mod ffi {
     // `Vertex`
     #[namespace = "graphar::builder"]
     unsafe extern "C++" {
+        #[rust_name = "BuilderVertex"]
         type Vertex;
 
         #[namespace = "graphar_rs"]
-        fn new_vertex() -> UniquePtr<Vertex>;
+        fn new_vertex() -> UniquePtr<BuilderVertex>;
         #[namespace = "graphar_rs"]
-        fn vertex_add_property_bool(vertex: Pin<&mut Vertex>, name: &CxxString, val: bool);
+        fn vertex_add_property_bool(vertex: Pin<&mut BuilderVertex>, name: &CxxString, val: bool);
         #[namespace = "graphar_rs"]
-        fn vertex_add_property_i32(vertex: Pin<&mut Vertex>, name: &CxxString, val: i32);
+        fn vertex_add_property_i32(vertex: Pin<&mut BuilderVertex>, name: &CxxString, val: i32);
         #[namespace = "graphar_rs"]
-        fn vertex_add_property_i64(vertex: Pin<&mut Vertex>, name: &CxxString, val: i64);
+        fn vertex_add_property_i64(vertex: Pin<&mut BuilderVertex>, name: &CxxString, val: i64);
         #[namespace = "graphar_rs"]
-        fn vertex_add_property_f32(vertex: Pin<&mut Vertex>, name: &CxxString, val: f32);
+        fn vertex_add_property_f32(vertex: Pin<&mut BuilderVertex>, name: &CxxString, val: f32);
         #[namespace = "graphar_rs"]
-        fn vertex_add_property_f64(vertex: Pin<&mut Vertex>, name: &CxxString, val: f64);
+        fn vertex_add_property_f64(vertex: Pin<&mut BuilderVertex>, name: &CxxString, val: f64);
         #[namespace = "graphar_rs"]
-        fn vertex_add_property_string(vertex: Pin<&mut Vertex>, name: &CxxString, val: &CxxString);
+        fn vertex_add_property_string(
+            vertex: Pin<&mut BuilderVertex>,
+            name: &CxxString,
+            val: &CxxString,
+        );
         // TODO(list date timestamp)
     }
 
@@ -208,7 +213,8 @@ pub(crate) mod ffi {
         type VerticesBuilder;
 
         #[namespace = "graphar_rs"]
-        fn add_vertex(builder: Pin<&mut VerticesBuilder>, v: Pin<&mut Vertex>) -> Result<()>;
+        fn add_vertex(builder: Pin<&mut VerticesBuilder>, v: Pin<&mut BuilderVertex>)
+        -> Result<()>;
         #[namespace = "graphar_rs"]
         fn new_vertices_builder(
             vertex_info: &SharedPtr<VertexInfo>,
@@ -284,22 +290,23 @@ pub(crate) mod ffi {
     // `Edge`
     #[namespace = "graphar::builder"]
     unsafe extern "C++" {
+        #[rust_name = "BuilderEdge"]
         type Edge;
 
         #[namespace = "graphar_rs"]
-        fn new_edge(src_id: i64, dst_id: i64) -> UniquePtr<Edge>;
+        fn new_edge(src_id: i64, dst_id: i64) -> UniquePtr<BuilderEdge>;
         #[namespace = "graphar_rs"]
-        fn edge_add_property_bool(edge: Pin<&mut Edge>, name: &CxxString, val: bool);
+        fn edge_add_property_bool(edge: Pin<&mut BuilderEdge>, name: &CxxString, val: bool);
         #[namespace = "graphar_rs"]
-        fn edge_add_property_i32(edge: Pin<&mut Edge>, name: &CxxString, val: i32);
+        fn edge_add_property_i32(edge: Pin<&mut BuilderEdge>, name: &CxxString, val: i32);
         #[namespace = "graphar_rs"]
-        fn edge_add_property_i64(edge: Pin<&mut Edge>, name: &CxxString, val: i64);
+        fn edge_add_property_i64(edge: Pin<&mut BuilderEdge>, name: &CxxString, val: i64);
         #[namespace = "graphar_rs"]
-        fn edge_add_property_f32(edge: Pin<&mut Edge>, name: &CxxString, val: f32);
+        fn edge_add_property_f32(edge: Pin<&mut BuilderEdge>, name: &CxxString, val: f32);
         #[namespace = "graphar_rs"]
-        fn edge_add_property_f64(edge: Pin<&mut Edge>, name: &CxxString, val: f64);
+        fn edge_add_property_f64(edge: Pin<&mut BuilderEdge>, name: &CxxString, val: f64);
         #[namespace = "graphar_rs"]
-        fn edge_add_property_string(edge: Pin<&mut Edge>, name: &CxxString, val: &CxxString);
+        fn edge_add_property_string(edge: Pin<&mut BuilderEdge>, name: &CxxString, val: &CxxString);
         // TODO(list date timestamp)
     }
 
@@ -309,7 +316,7 @@ pub(crate) mod ffi {
         type EdgesBuilder;
 
         #[namespace = "graphar_rs"]
-        fn add_edge(builder: Pin<&mut EdgesBuilder>, e: Pin<&mut Edge>) -> Result<()>;
+        fn add_edge(builder: Pin<&mut EdgesBuilder>, e: Pin<&mut BuilderEdge>) -> Result<()>;
         #[namespace = "graphar_rs"]
         fn new_edges_builder(
             edge_info: &SharedPtr<EdgeInfo>,
@@ -531,10 +538,10 @@ mod tests {
 
     use cxx::{CxxVector, SharedPtr, UniquePtr, let_cxx_string};
 
-    use crate::ffi::ffi::{
-        AdjListType, AdjacentList, AdjacentListVector, Cardinality, CreateAdjacentList,
-        CreateEdgeInfo, CreatePropertyGroup, CreateVertexInfo, Edge, EdgeInfo, FileType,
-        PropertyGroup, PropertyGroupVector, Vertex, VertexInfo, add_edge, add_vertex, boolean,
+    use crate::ffi::graphar::{
+        AdjListType, AdjacentList, AdjacentListVector, BuilderEdge, BuilderVertex, Cardinality,
+        CreateAdjacentList, CreateEdgeInfo, CreatePropertyGroup, CreateVertexInfo, EdgeInfo,
+        FileType, PropertyGroup, PropertyGroupVector, VertexInfo, add_edge, add_vertex, boolean,
         edge_add_property_bool, edge_add_property_f32, edge_add_property_f64,
         edge_add_property_i32, edge_add_property_i64, edge_add_property_string, edges_dump,
         float32, float64, int32, int64, load_graph_info, new_adjacent_list_vec,
@@ -631,7 +638,7 @@ mod tests {
         CreateVertexInfo(&type_, chunk_size, &pgv, &labels, &prefix, version)
     }
 
-    fn mock_vertex() -> UniquePtr<Vertex> {
+    fn mock_vertex() -> UniquePtr<BuilderVertex> {
         let mut v = new_vertex();
         let_cxx_string!(bool = "bool");
         let_cxx_string!(int32 = "i32");
@@ -661,7 +668,7 @@ mod tests {
         vec
     }
 
-    fn mock_edge() -> UniquePtr<Edge> {
+    fn mock_edge() -> UniquePtr<BuilderEdge> {
         let mut e = new_edge(1, 2);
         let_cxx_string!(bool = "bool");
         let_cxx_string!(int32 = "i32");
