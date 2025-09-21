@@ -274,7 +274,7 @@ void edges_dump(graphar::builder::EdgesBuilder &builder) {
 
 // Vertex
 #define DEF_VERTEX_PROPERTY_FUNC(type)                                         \
-  type vertex_property_##type(const graphar::Vertex &vertex,                         \
+  type vertex_property_##type(const graphar::Vertex &vertex,                   \
                               const std::string &name) {                       \
     return ValueOrThrow(vertex.property<type>(name));                          \
   }
@@ -292,7 +292,8 @@ rust::String vertex_property_string(const graphar::Vertex &vertex,
 
 // Edge
 #define DEF_EDGE_PROPERTY_FUNC(type)                                           \
-  type edge_property_##type(const graphar::Edge &edge, const std::string &name) {    \
+  type edge_property_##type(const graphar::Edge &edge,                         \
+                            const std::string &name) {                         \
     return ValueOrThrow(edge.property<type>(name));                            \
   }
 
@@ -308,6 +309,11 @@ rust::String edge_property_string(const graphar::Edge &edge,
 }
 
 // VertexIter
+bool vertex_iter_eq(const std::unique_ptr<graphar::VertexIter> &lhs,
+                    const std::unique_ptr<graphar::VertexIter> &rhs) {
+  return *lhs == *rhs;
+}
+
 graphar::IdType vertex_iter_id(graphar::VertexIter &iter) { return iter.id(); }
 
 bool vertex_iter_property_bool(graphar::VertexIter &iter,
@@ -354,6 +360,11 @@ vertex_iter_labels(graphar::VertexIter &iter) {
 }
 
 void vertex_iter_next(graphar::VertexIter &iter) { ++iter; }
+
+bool edge_iter_eq(const std::unique_ptr<graphar::EdgeIter> &lhs,
+                  const std::unique_ptr<graphar::EdgeIter> &rhs) {
+  return *lhs == *rhs;
+}
 
 bool edge_iter_property_bool(graphar::EdgeIter &iter, const std::string &name) {
   return EdgePropertyOrThrow<bool>(iter, name);

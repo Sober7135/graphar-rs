@@ -423,6 +423,7 @@ pub(crate) mod graphar {
     }
     #[namespace = "graphar_rs"]
     unsafe extern "C++" {
+        fn vertex_iter_eq(lhs: &UniquePtr<VertexIter>, rhs: &UniquePtr<VertexIter>) -> bool;
         fn vertex_iter_id(iter: Pin<&mut VertexIter>) -> i64;
         fn vertex_iter_property_bool(iter: Pin<&mut VertexIter>, name: &CxxString) -> Result<bool>;
         fn vertex_iter_property_i32(iter: Pin<&mut VertexIter>, name: &CxxString) -> Result<i32>;
@@ -455,6 +456,7 @@ pub(crate) mod graphar {
     }
     #[namespace = "graphar_rs"]
     unsafe extern "C++" {
+        fn edge_iter_eq(lhs: &UniquePtr<EdgeIter>, rhs: &UniquePtr<EdgeIter>) -> bool;
         fn edge_iter_property_bool(iter: Pin<&mut EdgeIter>, name: &CxxString) -> Result<bool>;
         fn edge_iter_property_i32(iter: Pin<&mut EdgeIter>, name: &CxxString) -> Result<i32>;
         fn edge_iter_property_i64(iter: Pin<&mut EdgeIter>, name: &CxxString) -> Result<i64>;
