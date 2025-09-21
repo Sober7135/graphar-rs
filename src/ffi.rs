@@ -690,7 +690,7 @@ mod tests {
         vertex_add_property_bool(v.pin_mut(), &bool, true);
         vertex_add_property_i32(v.pin_mut(), &int32, 114514);
         vertex_add_property_i64(v.pin_mut(), &int64, 1919810);
-        vertex_add_property_f32(v.pin_mut(), &float, 1919810.114514);
+        vertex_add_property_f32(v.pin_mut(), &float, 1919810.1);
         vertex_add_property_f64(v.pin_mut(), &double, 114514.1919810);
         vertex_add_property_string(v.pin_mut(), &string, &string_value);
         v
@@ -720,7 +720,7 @@ mod tests {
         edge_add_property_bool(e.pin_mut(), &bool, true);
         edge_add_property_i32(e.pin_mut(), &int32, 114514);
         edge_add_property_i64(e.pin_mut(), &int64, 1919810);
-        edge_add_property_f32(e.pin_mut(), &float, 1919810.114514);
+        edge_add_property_f32(e.pin_mut(), &float, 1919810.1);
         edge_add_property_f64(e.pin_mut(), &double, 114514.1919810);
         edge_add_property_string(e.pin_mut(), &string, &string_value);
 
@@ -834,7 +834,7 @@ mod tests {
         vertex_add_property_bool(v.pin_mut(), &bool, true);
         vertex_add_property_i32(v.pin_mut(), &int32, 114514);
         vertex_add_property_i64(v.pin_mut(), &int64, 1919810);
-        vertex_add_property_f32(v.pin_mut(), &float, 1919810.114514);
+        vertex_add_property_f32(v.pin_mut(), &float, 1919810.1);
         vertex_add_property_f64(v.pin_mut(), &double, 114514.1919810);
         vertex_add_property_string(v.pin_mut(), &string, &string_value);
     }
