@@ -1,5 +1,6 @@
 #include "graphar_rs.h"
 #include "graphar/fwd.h"
+#include "graphar/graph_info.h"
 #include "graphar/high-level/graph_reader.h"
 
 #include <algorithm>
@@ -60,6 +61,20 @@ std::shared_ptr<graphar::GraphInfo> load_graph_info(const std::string &path) {
     throw std::runtime_error(r.error().message());
   }
   return std::move(r).value();
+}
+
+std::shared_ptr<graphar::GraphInfo> create_graph_info(
+    const std::string &name, const graphar::VertexInfoVector &vertex_infos,
+    const graphar::EdgeInfoVector &edge_infos,
+    const rust::Vec<rust::String> &labels, const std::string &prefix,
+    std::shared_ptr<const graphar::InfoVersion> version) {
+  std::vector<std::string> label_list;
+  label_list.reserve(labels.size());
+  for (auto const &label : labels) {
+    label_list.emplace_back(label);
+  }
+  return graphar::CreateGraphInfo(name, vertex_infos, edge_infos, label_list,
+                                  prefix, version);
 }
 
 void graph_info_save(const graphar::GraphInfo &graph_info,

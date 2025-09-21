@@ -5,11 +5,11 @@ use std::path::Path;
 use cxx::{CxxString, CxxVector, SharedPtr, UniquePtr, let_cxx_string};
 
 use crate::ffi::{
-    self,
+    self, SharedVertexInfo,
     graphar::{
         Cardinality, CreateAdjacentList, CreateEdgeInfo, CreatePropertyGroup, boolean,
-        create_vertex_info, date, edge_info_dump, edge_info_save, float32, float64,
-        graph_info_dump, graph_info_save, int32, int64, list, load_graph_info,
+        create_graph_info, create_vertex_info, date, edge_info_dump, edge_info_save, float32,
+        float64, graph_info_dump, graph_info_save, int32, int64, list, load_graph_info,
         new_adjacent_list_vec, new_const_info_version, new_properties, new_property_group_vec,
         push_adjacent_list, push_property, push_property_group, string, timestamp,
         vertex_info_dump, vertex_info_save,
@@ -244,16 +244,53 @@ impl VertexInfo {
 pub struct GraphInfo {
     inner: SharedPtr<ffi::graphar::GraphInfo>,
 }
-
+// std::shared_ptr<graphar::GraphInfo> (*)(const std::__cxx11::basic_string<char>&, const std::vector<std::shared_ptr<graphar::VertexInfo> >&, const std::vector<std::shared_ptr<graphar::EdgeInfo> >&, const rust::cxxbridge1::Vec<rust::cxxbridge1::String>&, const std::__cxx11::basic_string<char>&, std::shared_ptr<const graphar::InfoVersion>)'
+// std::shared_ptr<graphar::GraphInfo> (*)(const rust::cxxbridge1::String&, const std::vector<graphar::VertexInfo>&, const std::vector<graphar::EdgeInfo>&, const rust::cxxbridge1::Vec<rust::cxxbridge1::String>&, const std::__cxx11::basic_string<char>&, std::shared_ptr<const graphar::InfoVersion>)'
 impl GraphInfo {
     pub fn new(
-        _name: String,
-        _vertex_infos: &Vec<VertexInfo>,
-        _edge_infos: &Vec<EdgeInfo>,
-        _labels: &Vec<String>,
-        _prefix: &String,
+        name: &String,
+        vertex_infos: &Vec<VertexInfo>,
+        edge_infos: &Vec<EdgeInfo>,
+        labels: &Vec<String>,
+        prefix: &String,
+        version: Option<InfoVersion>,
+        // TODO(extra_info)
     ) -> Self {
-        todo!()
+        let_cxx_string!(name = name);
+        let_cxx_string!(prefix = prefix);
+
+        let mut v_infos = CxxVector::new();
+        v_infos.pin_mut().reserve(vertex_infos.len());
+        for info in vertex_infos {
+            v_infos.pin_mut().push(SharedVertexInfo {
+                inner: info.inner.clone(),
+            });
+        }
+
+        let mut e_infos = CxxVector::new();
+        e_infos.pin_mut().reserve(edge_infos.len());
+        for info in edge_infos {
+            e_infos.pin_mut().push(ffi::SharedEdgeInfo {
+                inner: info.inner.clone(),
+            });
+        }
+
+        let version = if let Some(version) = version {
+            version.inner
+        } else {
+            SharedPtr::null()
+        };
+
+        Self {
+            inner: create_graph_info(
+                &name,
+                v_infos.as_ref().expect("vertex_infos is null"),
+                e_infos.as_ref().expect("edge_infos is null"),
+                labels,
+                &prefix,
+                version,
+            ),
+        }
     }
 
     pub fn load<P: AsRef<Path>>(path: P) -> anyhow::Result<Self> {

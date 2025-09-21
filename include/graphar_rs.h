@@ -1,5 +1,6 @@
 #include <cstdint>
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "graphar/expression.h"
@@ -10,6 +11,12 @@
 #include "graphar/high-level/vertices_builder.h"
 #include "graphar/version_parser.h"
 #include "rust/cxx.h"
+
+// https://github.com/dtolnay/cxx/issues/741
+// https://github.com/dtolnay/cxx/issues/774
+// Used for `create_graph_info`
+using SharedVertexInfo = std::shared_ptr<graphar::VertexInfo>;
+using SharedEdgeInfo = std::shared_ptr<graphar::EdgeInfo>;
 
 namespace graphar {
 using ConstInfoVersion = const InfoVersion;
@@ -25,9 +32,14 @@ using f64 = double;
 std::shared_ptr<graphar::InfoVersion> new_info_version(int version);
 std::shared_ptr<const graphar::InfoVersion> new_const_info_version(int version);
 
+// GraphInfo
 std::shared_ptr<graphar::GraphInfo> load_graph_info(const std::string &path);
 
-// GraphInfo
+std::shared_ptr<graphar::GraphInfo> create_graph_info(
+    const std::string &name, const graphar::VertexInfoVector &vertex_infos,
+    const graphar::EdgeInfoVector &edge_infos,
+    const rust::Vec<rust::String> &labels, const std::string &prefix,
+    std::shared_ptr<const graphar::InfoVersion> version);
 void graph_info_save(const graphar::GraphInfo &graph_info,
                      const std::string &path);
 std::unique_ptr<std::string>

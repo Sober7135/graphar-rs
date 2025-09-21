@@ -1,5 +1,30 @@
 #![allow(unused)]
 
+use cxx::{ExternType, SharedPtr};
+// 'std::shared_ptr<graphar::GraphInfo> (*)(const std::__cxx11::basic_string<char>&, const std::vector<std::shared_ptr<graphar::VertexInfo> >&, const std::vector<std::shared_ptr<graphar::EdgeInfo> >&, const rust::cxxbridge1::Vec<rust::cxxbridge1::String>&, const std::__cxx11::basic_string<char>&, std::shared_ptr<const graphar::InfoVersion>)'
+// 'std::shared_ptr<graphar::GraphInfo> (*)(const std::__cxx11::basic_string<char>&, const int&, const int&, const rust::cxxbridge1::Vec<rust::cxxbridge1::String>&, const std::__cxx11::basic_string<char>&, std::shared_ptr<const graphar::InfoVersion>)'
+// https://github.com/dtolnay/cxx/issues/774
+// https://github.com/dtolnay/cxx/issues/741
+#[repr(transparent)]
+pub(crate) struct SharedVertexInfo {
+    pub(crate) inner: SharedPtr<graphar::VertexInfo>,
+}
+
+unsafe impl ExternType for SharedVertexInfo {
+    type Id = cxx::type_id!("SharedVertexInfo");
+    type Kind = cxx::kind::Trivial;
+}
+
+#[repr(transparent)]
+pub(crate) struct SharedEdgeInfo {
+    pub(crate) inner: SharedPtr<graphar::EdgeInfo>,
+}
+
+unsafe impl ExternType for SharedEdgeInfo {
+    type Id = cxx::type_id!("SharedEdgeInfo");
+    type Kind = cxx::kind::Trivial;
+}
+
 #[cxx::bridge]
 pub(crate) mod graphar {
     #[namespace = "graphar"]
@@ -73,6 +98,14 @@ pub(crate) mod graphar {
 
     }
 
+    // Only used for `CxxVector<SharedPtr<VertexInfo>`/`CxxVector<SharedPtr<EdgeInfo>`
+    unsafe extern "C++" {
+        type SharedVertexInfo = crate::ffi::SharedVertexInfo;
+        type SharedEdgeInfo = crate::ffi::SharedEdgeInfo;
+    }
+    impl CxxVector<SharedEdgeInfo> {}
+    impl CxxVector<SharedVertexInfo> {}
+
     // `GraphInfo`
     unsafe extern "C++" {
         include!("graphar_rs.h");
@@ -90,6 +123,15 @@ pub(crate) mod graphar {
 
         #[namespace = "graphar_rs"]
         fn load_graph_info(path: &CxxString) -> Result<SharedPtr<GraphInfo>>;
+        #[namespace = "graphar_rs"]
+        fn create_graph_info(
+            name: &CxxString,
+            vertex_infos: &CxxVector<SharedVertexInfo>,
+            edge_infos: &CxxVector<SharedEdgeInfo>,
+            labels: &Vec<String>,
+            prefix: &CxxString,
+            version: SharedPtr<ConstInfoVersion>,
+        ) -> SharedPtr<GraphInfo>;
 
         #[namespace = "graphar_rs"]
         fn graph_info_save(graph_info: &GraphInfo, path: &CxxString) -> Result<()>;
