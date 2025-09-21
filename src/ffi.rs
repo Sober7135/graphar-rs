@@ -1,6 +1,5 @@
 #![allow(unused)]
 
-#[allow(clippy::module_inception)]
 #[cxx::bridge]
 pub(crate) mod graphar {
     #[namespace = "graphar"]
@@ -180,7 +179,7 @@ pub(crate) mod graphar {
         ) -> SharedPtr<VertexInfo>;
     }
 
-    // `Vertex`
+    // `builder::Vertex`
     #[namespace = "graphar::builder"]
     unsafe extern "C++" {
         #[rust_name = "BuilderVertex"]
@@ -207,7 +206,7 @@ pub(crate) mod graphar {
         // TODO(list date timestamp)
     }
 
-    // `VerticesBuilder`
+    // `builder::VerticesBuilder`
     unsafe extern "C++" {
         #[namespace = "graphar::builder"]
         type VerticesBuilder;
@@ -287,7 +286,7 @@ pub(crate) mod graphar {
         fn edge_info_dump(edge_info: &EdgeInfo) -> Result<UniquePtr<CxxString>>;
     }
 
-    // `Edge`
+    // `builder::Edge`
     #[namespace = "graphar::builder"]
     unsafe extern "C++" {
         #[rust_name = "BuilderEdge"]
@@ -310,7 +309,7 @@ pub(crate) mod graphar {
         // TODO(list date timestamp)
     }
 
-    // `EdgesBuilder`
+    // `builder::EdgesBuilder`
     unsafe extern "C++" {
         #[namespace = "graphar::builder"]
         type EdgesBuilder;
@@ -379,7 +378,45 @@ pub(crate) mod graphar {
         fn expression_not(expr: &SharedPtr<Expression>) -> SharedPtr<Expression>;
     }
 
-    // VertexIter
+    #[namespace = "graphar"]
+    unsafe extern "C++" {
+        type Vertex;
+
+        fn id(&self) -> i64;
+        fn IsValid(&self, property: &CxxString) -> bool;
+    }
+    #[namespace = "graphar_rs"]
+    unsafe extern "C++" {
+        fn vertex_property_bool(vertex: &Vertex, property: &CxxString) -> Result<bool>;
+        fn vertex_property_i32(vertex: &Vertex, property: &CxxString) -> Result<i32>;
+        fn vertex_property_i64(vertex: &Vertex, property: &CxxString) -> Result<i64>;
+        fn vertex_property_f32(vertex: &Vertex, property: &CxxString) -> Result<f32>;
+        fn vertex_property_f64(vertex: &Vertex, property: &CxxString) -> Result<f64>;
+        fn vertex_property_string(vertex: &Vertex, property: &CxxString) -> Result<String>;
+        // TODO(list, date, timestamp)
+    }
+
+    #[namespace = "graphar"]
+    unsafe extern "C++" {
+        type Edge;
+
+        fn source(&self) -> i64;
+        fn destination(&self) -> i64;
+        fn IsValid(&self, property: &CxxString) -> bool;
+    }
+
+    #[namespace = "graphar_rs"]
+    unsafe extern "C++" {
+        fn edge_property_bool(edge: &Edge, property: &CxxString) -> Result<bool>;
+        fn edge_property_i32(edge: &Edge, property: &CxxString) -> Result<i32>;
+        fn edge_property_i64(edge: &Edge, property: &CxxString) -> Result<i64>;
+        fn edge_property_f32(edge: &Edge, property: &CxxString) -> Result<f32>;
+        fn edge_property_f64(edge: &Edge, property: &CxxString) -> Result<f64>;
+        fn edge_property_string(edge: &Edge, property: &CxxString) -> Result<String>;
+        // TODO(list, date, timestamp)
+    }
+
+    // `VertexIter`
     #[namespace = "graphar"]
     unsafe extern "C++" {
         type VertexIter;

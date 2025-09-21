@@ -29,6 +29,20 @@ inline void ThrowIfStatusError(const graphar::Status &status) {
   }
 }
 
+template <typename T>
+T EdgePropertyOrThrow(graphar::EdgeIter &iter, const std::string &name) {
+  auto edge = (*iter);
+  auto result = edge.property<T>(name);
+  return ValueOrThrow(std::move(result));
+}
+
+template <typename T>
+T VertexPropertyOrThrow(graphar::VertexIter &iter, const std::string &name) {
+  auto vertex = (*iter);
+  auto result = vertex.property<T>(name);
+  return ValueOrThrow(std::move(result));
+}
+
 } // namespace
 
 std::shared_ptr<graphar::InfoVersion> new_info_version(int version) {
@@ -258,19 +272,43 @@ void edges_dump(graphar::builder::EdgesBuilder &builder) {
   }
 }
 
-// VertexIter
-graphar::IdType vertex_iter_id(graphar::VertexIter &iter) { return iter.id(); }
+// Vertex
+#define DEF_VERTEX_PROPERTY_FUNC(type)                                         \
+  type vertex_property_##type(const graphar::Vertex &vertex,                         \
+                              const std::string &name) {                       \
+    return ValueOrThrow(vertex.property<type>(name));                          \
+  }
 
-namespace {
+DEF_VERTEX_PROPERTY_FUNC(bool)
+DEF_VERTEX_PROPERTY_FUNC(i32)
+DEF_VERTEX_PROPERTY_FUNC(i64)
+DEF_VERTEX_PROPERTY_FUNC(f32)
+DEF_VERTEX_PROPERTY_FUNC(f64)
 
-template <typename T>
-T VertexPropertyOrThrow(graphar::VertexIter &iter, const std::string &name) {
-  auto vertex = (*iter);
-  auto result = vertex.property<T>(name);
-  return ValueOrThrow(std::move(result));
+rust::String vertex_property_string(const graphar::Vertex &vertex,
+                                    const std::string &name) {
+  return rust::String(ValueOrThrow(vertex.property<std::string>(name)));
 }
 
-} // namespace
+// Edge
+#define DEF_EDGE_PROPERTY_FUNC(type)                                           \
+  type edge_property_##type(const graphar::Edge &edge, const std::string &name) {    \
+    return ValueOrThrow(edge.property<type>(name));                            \
+  }
+
+DEF_EDGE_PROPERTY_FUNC(bool)
+DEF_EDGE_PROPERTY_FUNC(i32)
+DEF_EDGE_PROPERTY_FUNC(i64)
+DEF_EDGE_PROPERTY_FUNC(f32)
+DEF_EDGE_PROPERTY_FUNC(f64)
+
+rust::String edge_property_string(const graphar::Edge &edge,
+                                  const std::string &name) {
+  return rust::String(ValueOrThrow(edge.property<std::string>(name)));
+}
+
+// VertexIter
+graphar::IdType vertex_iter_id(graphar::VertexIter &iter) { return iter.id(); }
 
 bool vertex_iter_property_bool(graphar::VertexIter &iter,
                                const std::string &name) {
@@ -316,16 +354,6 @@ vertex_iter_labels(graphar::VertexIter &iter) {
 }
 
 void vertex_iter_next(graphar::VertexIter &iter) { ++iter; }
-namespace {
-
-template <typename T>
-T EdgePropertyOrThrow(graphar::EdgeIter &iter, const std::string &name) {
-  auto edge = (*iter);
-  auto result = edge.property<T>(name);
-  return ValueOrThrow(std::move(result));
-}
-
-} // namespace
 
 bool edge_iter_property_bool(graphar::EdgeIter &iter, const std::string &name) {
   return EdgePropertyOrThrow<bool>(iter, name);

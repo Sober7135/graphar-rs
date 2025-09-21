@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <memory>
 #include <vector>
 
@@ -15,6 +16,11 @@ using ConstInfoVersion = const InfoVersion;
 }
 
 namespace graphar_rs {
+using i32 = int32_t;
+using i64 = int64_t;
+using f32 = float;
+using f64 = double;
+
 // InfoVersion
 std::shared_ptr<graphar::InfoVersion> new_info_version(int version);
 std::shared_ptr<const graphar::InfoVersion> new_const_info_version(int version);
@@ -110,6 +116,32 @@ new_edges_builder(const std::shared_ptr<graphar::EdgeInfo> &edge_info,
 void add_edge(graphar::builder::EdgesBuilder &builder,
               graphar::builder::Edge &v);
 void edges_dump(graphar::builder::EdgesBuilder &builder);
+
+// Vertex
+
+#define DECL_VERTEX_PROPERTY_FUNC(type)                                        \
+  type vertex_property_##type(const graphar::Vertex &vertex,                   \
+                              const std::string &name);
+
+DECL_VERTEX_PROPERTY_FUNC(bool)
+DECL_VERTEX_PROPERTY_FUNC(i32)
+DECL_VERTEX_PROPERTY_FUNC(i64)
+DECL_VERTEX_PROPERTY_FUNC(f32)
+DECL_VERTEX_PROPERTY_FUNC(f64)
+rust::String vertex_property_string(const graphar::Vertex &vertex,
+                                    const std::string &name);
+
+// Edge
+#define DECL_EDGE_PROPERTY_FUNC(type)                                          \
+  type edge_property_##type(const graphar::Edge &edge, const std::string &name);
+
+DECL_EDGE_PROPERTY_FUNC(bool)
+DECL_EDGE_PROPERTY_FUNC(i32)
+DECL_EDGE_PROPERTY_FUNC(i64)
+DECL_EDGE_PROPERTY_FUNC(f32)
+DECL_EDGE_PROPERTY_FUNC(f64)
+rust::String edge_property_string(const graphar::Edge &edge,
+                                  const std::string &name);
 
 // VertexIter
 graphar::IdType vertex_iter_id(graphar::VertexIter &iter);
