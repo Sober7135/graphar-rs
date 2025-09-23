@@ -1,15 +1,18 @@
-use std::{env::current_dir, fs::exists, path::Path};
+use std::{env::current_dir, fs::exists};
 
 use graphar::{
     graph_info::{GraphInfo, Type},
     graph_reader::Vertices,
 };
 
-const PATH: &str = "/workspace/incubator-graphar-testing/modern_graph";
+const PATH: &str = "incubator-graphar-testing/modern_graph";
 
 fn read() {
-    let path = Path::new(PATH).join("modern_graph.graph.yml");
+    let current_dir = current_dir().unwrap();
+    let path = current_dir.join(PATH).join("modern_graph.graph.yml");
+
     assert!(exists(&path).unwrap());
+
     let graph_info = GraphInfo::load(path).unwrap();
     let vertex_infos = graph_info.vertex_infos();
 
@@ -26,7 +29,7 @@ fn read() {
         let mut count = 0_usize;
 
         while iter != vertices.end() {
-            print!("{}", iter.id());
+            print!("{} ", iter.id());
             for p in props.iter() {
                 let ty = p.data_type();
                 let name = p.name();
@@ -36,9 +39,10 @@ fn read() {
                     Type::Int64 => iter.property::<i64>(&name).unwrap().to_string(),
                     Type::Float => iter.property::<f32>(&name).unwrap().to_string(),
                     Type::Double => iter.property::<f64>(&name).unwrap().to_string(),
+                    Type::String => iter.property::<String>(&name).unwrap(),
                     _ => unimplemented!(),
                 };
-                print!("{}({}): {},", name, value, ty);
+                print!("{}({}): {}, ", name, value, ty);
             }
             println!();
             count += 1;
@@ -50,6 +54,5 @@ fn read() {
 }
 
 fn main() {
-    println!("{}", current_dir().unwrap().display());
     read();
 }

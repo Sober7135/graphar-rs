@@ -5,6 +5,8 @@ fn link_libraries() {
     // println!("cargo:rustc-link-lib=static=graphar_bundled_dependencies");
     println!("cargo:rustc-link-search=native=/usr/lib/x86_64-linux-gnu/");
     println!("cargo:rustc-link-lib=dylib=arrow_compute");
+    println!("cargo:rustc-link-lib=dylib=arrow_dataset");
+    println!("cargo:rustc-link-lib=dylib=arrow_acero");
     println!("cargo:rustc-link-lib=dylib=arrow");
 
     println!("cargo:rustc-link-lib=graphar");
@@ -32,12 +34,21 @@ fn build_bundled_cmake() -> Vec<PathBuf> {
     build
         .no_build_target(true)
         // .define("BUILD_ARROW_FROM_SOURCE", "on")
-        .define("CMAKE_BUILD_TYPE", "Release");
+        .define("CMAKE_BUILD_TYPE", "RelWithDebInfo");
     let build_dir = build.build();
 
     let graphar_lib_path = build_dir.join("build");
     println!(
         "cargo:rustc-link-search=native={}",
+        graphar_lib_path.display()
+    );
+
+    // Ensure runtime can find libgraphar.so without needing LD_LIBRARY_PATH.
+    // Embed an rpath pointing to the absolute path where CMake outputs libgraphar.so.
+    // This helps `cargo run --example ...` work out of the box.
+    #[cfg(target_os = "linux")]
+    println!(
+        "cargo:rustc-link-arg=-Wl,-rpath,{}",
         graphar_lib_path.display()
     );
 
