@@ -1,107 +1,148 @@
 // Currently do not support cardinality
 
-use std::path::Path;
+pub use ffi::graphar::{AdjListType, Cardinality, FileType, Type};
+use std::{fmt::Display, path::Path};
 
-use cxx::{CxxString, CxxVector, SharedPtr, UniquePtr, let_cxx_string};
+use cxx::{CxxVector, SharedPtr, UniquePtr, let_cxx_string};
 
-use crate::ffi::{
-    self, SharedVertexInfo,
-    graphar::{
-        Cardinality, CreateAdjacentList, CreateEdgeInfo, CreatePropertyGroup, boolean,
-        create_graph_info, create_vertex_info, date, edge_info_dump, edge_info_save, float32,
-        float64, graph_info_dump, graph_info_save, int32, int64, list, load_graph_info,
-        new_adjacent_list_vec, new_const_info_version, new_properties, new_property_group_vec,
-        push_adjacent_list, push_property, push_property_group, string, timestamp,
-        vertex_info_dump, vertex_info_save,
+use crate::{
+    cxx_string_to_string,
+    ffi::{
+        self, SharedPropertyGroup, SharedVertexInfo,
+        graphar::{
+            CreateAdjacentList, CreateEdgeInfo, CreatePropertyGroup, boolean, create_graph_info,
+            create_vertex_info, date, edge_info_dump, edge_info_save, float32, float64,
+            graph_info_dump, graph_info_save, int32, int64, list, load_graph_info,
+            new_adjacent_list_vec, new_const_info_version, new_properties, new_property,
+            new_property_group_vec, property_clone, property_get_name, property_get_type,
+            push_adjacent_list, push_property, push_property_group, string, timestamp,
+            to_type_name, vertex_info_dump, vertex_info_save,
+        },
     },
 };
 
-fn cxx_string_to_string(s: &CxxString) -> String {
-    s.to_str()
-        .map(|s| s.to_owned())
-        .unwrap_or_else(|_| String::from_utf8_lossy(s.as_bytes()).into_owned())
+#[derive(Clone)]
+pub struct DataType {
+    inner: SharedPtr<ffi::graphar::DataType>,
 }
 
-#[derive(Debug, Clone)]
-pub enum DataType {
-    Bool,
-    Int32,
-    Int64,
-    Float,
-    Double,
-    String,
-    List(Box<DataType>),
-    Date,
-    Timestamp,
-    UserDefined,
+impl PartialEq for DataType {
+    fn eq(&self, other: &Self) -> bool {
+        self.inner
+            .Equals(other.inner.as_ref().expect("rhs is nullptr"))
+    }
 }
 
-impl From<DataType> for SharedPtr<ffi::graphar::DataType> {
-    fn from(value: DataType) -> Self {
-        match value {
-            DataType::Bool => boolean().clone(),
-            DataType::Int32 => int32().clone(),
-            DataType::Int64 => int64().clone(),
-            DataType::Float => float32().clone(),
-            DataType::Double => float64().clone(),
-            DataType::String => string().clone(),
-            DataType::Timestamp => timestamp().clone(),
-            DataType::Date => date().clone(),
-            DataType::List(inner) => {
-                let inner = (*inner).clone().into();
-                list(&inner)
-            }
-            DataType::UserDefined => unimplemented!(),
+impl Eq for DataType {}
+
+impl Display for DataType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", to_type_name(&self.inner))
+    }
+}
+
+impl DataType {
+    pub fn value_type(&self) -> Self {
+        DataType {
+            inner: self.inner.value_type().clone(),
+        }
+    }
+
+    pub fn id(&self) -> Type {
+        self.inner.id()
+    }
+
+    pub fn boolean() -> Self {
+        Self {
+            inner: boolean().clone(),
+        }
+    }
+
+    pub fn int32() -> Self {
+        Self {
+            inner: int32().clone(),
+        }
+    }
+
+    pub fn int64() -> Self {
+        Self {
+            inner: int64().clone(),
+        }
+    }
+
+    pub fn float32() -> Self {
+        Self {
+            inner: float32().clone(),
+        }
+    }
+
+    pub fn float64() -> Self {
+        Self {
+            inner: float64().clone(),
+        }
+    }
+
+    pub fn string() -> Self {
+        Self {
+            inner: string().clone(),
+        }
+    }
+
+    pub fn date() -> Self {
+        Self {
+            inner: date().clone(),
+        }
+    }
+
+    pub fn timestamp() -> Self {
+        Self {
+            inner: timestamp().clone(),
+        }
+    }
+
+    pub fn list(value_type: DataType) -> Self {
+        Self {
+            inner: list(&value_type.inner),
         }
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-pub enum FileType {
-    Csv,
-    Parquet,
-    Orc,
-    Json,
-}
-
-impl From<FileType> for ffi::graphar::FileType {
-    fn from(value: FileType) -> Self {
-        match value {
-            FileType::Csv => ffi::graphar::FileType::CSV,
-            FileType::Parquet => ffi::graphar::FileType::PARQUET,
-            FileType::Orc => ffi::graphar::FileType::ORC,
-            FileType::Json => ffi::graphar::FileType::JSON,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum AdjListType {
-    UnorderedBySource,
-    UnorderedByDest,
-    OrderedBySource,
-    OrderedByDest,
-}
-
-impl From<AdjListType> for ffi::graphar::AdjListType {
-    fn from(value: AdjListType) -> Self {
-        match value {
-            AdjListType::UnorderedBySource => ffi::graphar::AdjListType::unordered_by_source,
-            AdjListType::UnorderedByDest => ffi::graphar::AdjListType::unordered_by_dest,
-            AdjListType::OrderedBySource => ffi::graphar::AdjListType::ordered_by_source,
-            AdjListType::OrderedByDest => ffi::graphar::AdjListType::ordered_by_dest,
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
 pub struct Property {
-    pub name: String,
-    pub data_type: DataType,
-    pub is_primary: bool,
-    pub is_nullable: bool,
+    inner: UniquePtr<ffi::graphar::Property>,
 }
 
+impl Property {
+    //
+    pub fn new<S: AsRef<str>>(
+        name: S,
+        data_type: &DataType,
+        is_primary: bool,
+        is_nullable: bool,
+        cardinality: Cardinality,
+    ) -> Self {
+        let_cxx_string!(name = name.as_ref());
+        Self {
+            inner: new_property(
+                &name,
+                &data_type.inner,
+                is_primary,
+                is_nullable,
+                cardinality,
+            ),
+        }
+    }
+
+    pub fn name(&self) -> String {
+        cxx_string_to_string(property_get_name(&self.inner))
+    }
+
+    pub fn data_type(&self) -> DataType {
+        let ty = property_get_type(&self.inner);
+        DataType { inner: ty.clone() }
+    }
+}
+
+// TODO(how to design this)
 pub struct PropertyVec {
     inner: UniquePtr<CxxVector<ffi::graphar::Property>>,
 }
@@ -120,15 +161,7 @@ impl PropertyVec {
     }
 
     pub fn add_property(&mut self, property: Property) {
-        let_cxx_string!(name = property.name);
-        push_property(
-            self.inner.pin_mut(),
-            &name,
-            &property.data_type.into(),
-            property.is_primary,
-            property.is_nullable,
-            Cardinality::SINGLE,
-        );
+        push_property(self.inner.pin_mut(), property.inner);
     }
 }
 
@@ -144,11 +177,21 @@ impl PropertyGroup {
         let props = properties_vec
             .as_ref()
             .expect("properties vec should be valid");
-        let inner = CreatePropertyGroup(props, file_type.into(), &prefix);
+        let inner = CreatePropertyGroup(props, file_type, &prefix);
         Self { inner }
     }
 
-    // TODO(get_properties)
+    pub fn properties(&self) -> Vec<Property> {
+        let props_cxx = self.inner.GetProperties();
+        let mut props = Vec::with_capacity(props_cxx.len());
+        for prop in props_cxx {
+            props.push(Property {
+                inner: property_clone(prop),
+            });
+        }
+
+        props
+    }
 
     pub fn has_property(&self, property_name: &str) -> bool {
         let_cxx_string!(name = property_name);
@@ -158,7 +201,7 @@ impl PropertyGroup {
 }
 
 pub struct PropertyGroupVector {
-    inner: UniquePtr<ffi::graphar::PropertyGroupVector>,
+    inner: UniquePtr<CxxVector<SharedPropertyGroup>>,
 }
 
 impl Default for PropertyGroupVector {
@@ -229,6 +272,63 @@ impl VertexInfo {
         Self { inner }
     }
 
+    pub fn ty(&self) -> String {
+        cxx_string_to_string(self.inner.GetType())
+    }
+
+    pub fn chunk_size(&self) -> i64 {
+        self.inner.GetChunkSize()
+    }
+
+    pub fn prefix(&self) -> String {
+        cxx_string_to_string(self.inner.GetPrefix())
+    }
+
+    pub fn version(&self) -> InfoVersion {
+        InfoVersion {
+            inner: self.inner.version().clone(),
+        }
+    }
+
+    pub fn labels(&self) -> Vec<String> {
+        let labels_cxx = self.inner.GetLabels();
+        let mut labels = Vec::with_capacity(labels_cxx.len());
+        for label in labels_cxx {
+            labels.push(cxx_string_to_string(label));
+        }
+
+        labels
+    }
+
+    pub fn property_group_num(&self) -> i32 {
+        self.inner.PropertyGroupNum()
+    }
+
+    pub fn property_groups(&self) -> Vec<PropertyGroup> {
+        let pgs_cxx = self.inner.GetPropertyGroups();
+        let mut pgs = Vec::with_capacity(pgs_cxx.len());
+        for pg in pgs_cxx.iter() {
+            pgs.push(PropertyGroup {
+                inner: pg.inner.clone(),
+            });
+        }
+
+        pgs
+    }
+
+    pub fn property_group<S: AsRef<str>>(&self, property_name: S) -> PropertyGroup {
+        let_cxx_string!(name = property_name.as_ref());
+        PropertyGroup {
+            inner: self.inner.GetPropertyGroup(&name),
+        }
+    }
+
+    pub fn property_group_by_index(&self, index: i32) -> PropertyGroup {
+        PropertyGroup {
+            inner: self.inner.GetPropertyGroupByIndex(index),
+        }
+    }
+
     pub fn save<P: AsRef<Path>>(&self, path: P) -> anyhow::Result<()> {
         let path_string = path.as_ref().to_string_lossy().into_owned();
         let_cxx_string!(path = path_string);
@@ -242,7 +342,7 @@ impl VertexInfo {
 }
 
 pub struct GraphInfo {
-    inner: SharedPtr<ffi::graphar::GraphInfo>,
+    pub(crate) inner: SharedPtr<ffi::graphar::GraphInfo>,
 }
 // std::shared_ptr<graphar::GraphInfo> (*)(const std::__cxx11::basic_string<char>&, const std::vector<std::shared_ptr<graphar::VertexInfo> >&, const std::vector<std::shared_ptr<graphar::EdgeInfo> >&, const rust::cxxbridge1::Vec<rust::cxxbridge1::String>&, const std::__cxx11::basic_string<char>&, std::shared_ptr<const graphar::InfoVersion>)'
 // std::shared_ptr<graphar::GraphInfo> (*)(const rust::cxxbridge1::String&, const std::vector<graphar::VertexInfo>&, const std::vector<graphar::EdgeInfo>&, const rust::cxxbridge1::Vec<rust::cxxbridge1::String>&, const std::__cxx11::basic_string<char>&, std::shared_ptr<const graphar::InfoVersion>)'
@@ -322,6 +422,61 @@ impl GraphInfo {
         InfoVersion { inner: sp.clone() }
     }
 
+    pub fn vertex_info<S: AsRef<str>>(&self, r#type: S) -> VertexInfo {
+        let_cxx_string!(ty = r#type.as_ref());
+        VertexInfo {
+            inner: self.inner.GetVertexInfo(&ty),
+        }
+    }
+
+    pub fn edge_info<S: AsRef<str>>(&self, src_type: S, edge_type: S, dst_type: S) -> EdgeInfo {
+        let_cxx_string!(src_type = src_type.as_ref());
+        let_cxx_string!(edge_type = edge_type.as_ref());
+        let_cxx_string!(dst_type = dst_type.as_ref());
+
+        EdgeInfo {
+            inner: self.inner.GetEdgeInfo(&src_type, &edge_type, &dst_type),
+        }
+    }
+
+    pub fn vertex_info_index<S: AsRef<str>>(&self, r#type: S) -> i32 {
+        let_cxx_string!(ty = r#type.as_ref());
+        self.inner.GetVertexInfoIndex(&ty)
+    }
+
+    pub fn edge_info_index<S: AsRef<str>>(&self, src_type: S, edge_type: S, dst_type: S) -> i32 {
+        let_cxx_string!(src_type = src_type.as_ref());
+        let_cxx_string!(edge_type = edge_type.as_ref());
+        let_cxx_string!(dst_type = dst_type.as_ref());
+
+        self.inner
+            .GetEdgeInfoIndex(&src_type, &edge_type, &dst_type)
+    }
+
+    pub fn vertex_infos(&self) -> Vec<VertexInfo> {
+        let vec = self.inner.GetVertexInfos();
+        let mut out = Vec::with_capacity(vec.len());
+        for item in vec {
+            out.push(VertexInfo {
+                inner: item.inner.clone(),
+            });
+        }
+
+        out
+    }
+
+    pub fn edge_infos(&self) -> Vec<EdgeInfo> {
+        let vec = self.inner.GetEdgeInfos();
+        let mut out = Vec::with_capacity(vec.len());
+        for item in vec {
+            out.push(EdgeInfo {
+                inner: item.inner.clone(),
+            });
+        }
+
+        out
+    }
+
     pub fn vertex_info_num(&self) -> i32 {
         self.inner.VertexInfoNum()
     }
@@ -350,28 +505,16 @@ impl AdjacentList {
     pub fn new<P: AsRef<Path>>(ty: AdjListType, file_type: FileType, path_prefix: P) -> Self {
         let prefix_string = path_prefix.as_ref().to_string_lossy().into_owned();
         let_cxx_string!(prefix = prefix_string);
-        let inner = CreateAdjacentList(ty.into(), file_type.into(), &prefix);
+        let inner = CreateAdjacentList(ty, file_type, &prefix);
         Self { inner }
     }
 
     pub fn list_type(&self) -> AdjListType {
-        match self.inner.GetType() {
-            ffi::graphar::AdjListType::unordered_by_source => AdjListType::UnorderedBySource,
-            ffi::graphar::AdjListType::unordered_by_dest => AdjListType::UnorderedByDest,
-            ffi::graphar::AdjListType::ordered_by_source => AdjListType::OrderedBySource,
-            ffi::graphar::AdjListType::ordered_by_dest => AdjListType::OrderedByDest,
-            _ => unreachable!(),
-        }
+        self.inner.GetType()
     }
 
     pub fn file_type(&self) -> FileType {
-        match self.inner.GetFileType() {
-            ffi::graphar::FileType::CSV => FileType::Csv,
-            ffi::graphar::FileType::PARQUET => FileType::Parquet,
-            ffi::graphar::FileType::ORC => FileType::Orc,
-            ffi::graphar::FileType::JSON => FileType::Json,
-            _ => unreachable!(),
-        }
+        self.inner.GetFileType()
     }
 
     pub fn prefix(&self) -> String {
@@ -484,115 +627,5 @@ impl EdgeInfo {
     }
     pub fn directed(&self) -> bool {
         self.inner.IsDirected()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-
-    use crate::graph_builder::{self, EdgesBuilder, VerticesBuilder};
-
-    use super::*;
-
-    #[test]
-    fn test() {
-        let mut vertex_props = PropertyVec::new();
-
-        // Add id
-        vertex_props.add_property(Property {
-            name: "id".into(),
-            data_type: DataType::Int64,
-            is_primary: false,
-            is_nullable: false,
-        });
-        // Add name
-        vertex_props.add_property(Property {
-            name: "name".into(),
-            data_type: DataType::String,
-            is_primary: false,
-            is_nullable: false,
-        });
-
-        let vertex_prop_group = PropertyGroup::new(vertex_props, FileType::Csv, "");
-        let mut vertex_prop_groups = PropertyGroupVector::new();
-        vertex_prop_groups.add_property_group(vertex_prop_group);
-
-        // `VertexInfo` save
-        let version = InfoVersion::new(1).unwrap();
-        let vertex_info = VertexInfo::new(
-            "person".into(),
-            1024,
-            vertex_prop_groups,
-            vec![],
-            "",
-            version.clone(),
-        );
-        vertex_info
-            .save("/tmp/test_graphar/person.vertex.yml")
-            .unwrap();
-
-        // `VerticesBuilder` dump
-        let mut vb = VerticesBuilder::new(&vertex_info, "/tmp/test_graphar/vertex/", 0).unwrap();
-        let mut alice = graph_builder::Vertex::new();
-        alice.add_property("id".into(), 1_i64);
-        alice.add_property("name".into(), "alice".to_string());
-
-        let mut bob = graph_builder::Vertex::new();
-        bob.add_property("id".into(), 2_i64);
-        bob.add_property("name".into(), "bob".to_string());
-        vb.add_vertex(alice).unwrap();
-        vb.add_vertex(bob).unwrap();
-        vb.dump().unwrap();
-
-        // `EdgeInfo`
-        let mut adjs = AdjacentListVector::new();
-        let adj = AdjacentList::new(AdjListType::OrderedBySource, FileType::Csv, "");
-        adjs.add_adjacent_list(adj);
-
-        let mut edge_props = PropertyVec::new();
-        edge_props.add_property(Property {
-            name: "friend".into(),
-            data_type: DataType::String,
-            is_primary: false,
-            is_nullable: true,
-        });
-        let mut edge_prop_groups = PropertyGroupVector::new();
-        edge_prop_groups.add_property_group(PropertyGroup::new(
-            edge_props,
-            FileType::Csv,
-            "knows/props",
-        ));
-
-        let edge_info = EdgeInfo::new(
-            "person",
-            "knows",
-            "person",
-            1024,
-            1024,
-            1024,
-            true,
-            adjs,
-            edge_prop_groups,
-            "",
-            version.clone(),
-        );
-        edge_info
-            .save("/tmp/test_graphar/person_knows_person.edge.yml")
-            .unwrap();
-
-        // EdgesBuilder
-        let mut edge_builder = EdgesBuilder::new(
-            &edge_info,
-            "/tmp/test_graphar/edge/",
-            AdjListType::OrderedBySource,
-            2,
-        )
-        .unwrap();
-        let mut e = graph_builder::Edge::new(1, 2);
-        e.add_property("friend".into(), "bob".to_string());
-        edge_builder.add_edge(e).unwrap();
-        edge_builder.dump().unwrap();
-
-        // GraphInfo
     }
 }

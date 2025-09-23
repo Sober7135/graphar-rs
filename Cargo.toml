@@ -7,6 +7,9 @@ edition = "2024"
 anyhow = "1.0.99"
 cxx = "1.0.168"
 
+[dev-dependencies]
+tempfile = "3.22.0"
+
 [build-dependencies]
 cxx-build = "1.0.168"
 cmake = "0.1.54"

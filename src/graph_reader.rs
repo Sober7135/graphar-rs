@@ -1,25 +1,13 @@
 use std::ops::Range;
 
 use anyhow::Result;
-use cxx::{CxxString, SharedPtr, UniquePtr, let_cxx_string};
+use cxx::{SharedPtr, UniquePtr, let_cxx_string};
 
 use crate::{
+    cxx_string_to_string,
     ffi::graphar,
     graph_info::{AdjListType, GraphInfo},
 };
-
-fn graph_info_ptr(info: &GraphInfo) -> &SharedPtr<graphar::GraphInfo> {
-    // GraphInfo is a newtype wrapper around SharedPtr<GraphInfo>.
-    // Reinterpret the reference so we can pass it to the FFI helpers.
-    unsafe { &*(info as *const GraphInfo as *const SharedPtr<graphar::GraphInfo>) }
-}
-
-fn cxx_string_to_string(value: &CxxString) -> String {
-    value
-        .to_str()
-        .map(|s| s.to_owned())
-        .unwrap_or_else(|_| String::from_utf8_lossy(value.as_bytes()).into_owned())
-}
 
 #[derive(Clone)]
 pub struct Vertices {
@@ -29,18 +17,15 @@ pub struct Vertices {
 impl Vertices {
     pub fn new(graph_info: &GraphInfo, ty: &str) -> Result<Self> {
         let_cxx_string!(ty_cxx = ty);
-        let inner = graphar::vertices_collection_make(graph_info_ptr(graph_info), &ty_cxx)?;
+        let inner = graphar::vertices_collection_make(&graph_info.inner, &ty_cxx)?;
         Ok(Self { inner })
     }
 
     pub fn with_label(graph_info: &GraphInfo, ty: &str, label: &str) -> Result<Self> {
         let_cxx_string!(ty_cxx = ty);
         let_cxx_string!(label_cxx = label);
-        let inner = graphar::vertices_collection_with_label(
-            graph_info_ptr(graph_info),
-            &ty_cxx,
-            &label_cxx,
-        )?;
+        let inner =
+            graphar::vertices_collection_with_label(&graph_info.inner, &ty_cxx, &label_cxx)?;
         Ok(Self { inner })
     }
 
@@ -121,7 +106,7 @@ pub struct Edges {
 
 impl Edges {
     #[allow(clippy::too_many_arguments)]
-    pub fn make(
+    pub fn new(
         graph_info: &GraphInfo,
         src_type: &str,
         edge_type: &str,
@@ -138,11 +123,11 @@ impl Edges {
         let_cxx_string!(dst_cxx = dst_type);
 
         let inner = graphar::edges_collection_make(
-            graph_info_ptr(graph_info),
+            &graph_info.inner,
             &src_cxx,
             &edge_cxx,
             &dst_cxx,
-            adj_list_type.into(),
+            adj_list_type,
             chunk_begin,
             chunk_end,
         )?;

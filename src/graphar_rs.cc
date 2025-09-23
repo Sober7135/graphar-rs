@@ -46,6 +46,10 @@ T VertexPropertyOrThrow(graphar::VertexIter &iter, const std::string &name) {
 
 } // namespace
 
+rust::String to_type_name(const graphar::DataType &type) {
+  return rust::String(type.ToTypeName());
+}
+
 std::shared_ptr<graphar::InfoVersion> new_info_version(int version) {
   return std::make_shared<graphar::InfoVersion>(version);
 }
@@ -93,17 +97,40 @@ graph_info_dump(const graphar::GraphInfo &graph_info) {
   return std::make_unique<std::string>(std::move(r).value());
 }
 
+std::unique_ptr<graphar::Property>
+new_property(const std::string &name,
+             const std::shared_ptr<graphar::DataType> &type, bool is_primary,
+             bool is_nullable, graphar::Cardinality cardinality) {
+  return std::make_unique<graphar::Property>(name, type, is_primary,
+                                             is_nullable, cardinality);
+}
+const std::string &property_get_name(const graphar::Property &prop) {
+  return prop.name;
+}
+const std::shared_ptr<graphar::DataType> &
+property_get_type(const graphar::Property &prop) {
+  return prop.type;
+}
+bool property_is_primary(const graphar::Property &prop) {
+  return prop.is_primary;
+}
+bool property_is_nullable(const graphar::Property &prop) {
+  return prop.is_nullable;
+}
+graphar::Cardinality property_get_cardinality(const graphar::Property &prop) {
+  return prop.cardinality;
+}
+std::unique_ptr<graphar::Property>
+property_clone(const graphar::Property &prop) {
+  return std::make_unique<graphar::Property>(prop);
+}
+
 std::unique_ptr<std::vector<graphar::Property>> new_properties() {
   return std::make_unique<std::vector<graphar::Property>>();
 }
 void push_property(std::vector<graphar::Property> &properties,
-                   const std::string &name,
-                   const std::shared_ptr<graphar::DataType> &type,
-                   bool is_primary, bool is_nullable,
-                   graphar::Cardinality cardinality) {
-  // auto property =
-  //     graphar::Property(name, type, is_primary, is_nullable, cardinality);
-  properties.emplace_back(name, type, is_primary, is_nullable, cardinality);
+                   std::unique_ptr<graphar::Property> prop) {
+  properties.emplace_back(*prop);
 }
 
 std::unique_ptr<graphar::PropertyGroupVector> new_property_group_vec() {

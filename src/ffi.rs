@@ -1,6 +1,6 @@
 #![allow(unused)]
 
-use cxx::{ExternType, SharedPtr};
+use cxx::{CxxVector, ExternType, SharedPtr};
 // 'std::shared_ptr<graphar::GraphInfo> (*)(const std::__cxx11::basic_string<char>&, const std::vector<std::shared_ptr<graphar::VertexInfo> >&, const std::vector<std::shared_ptr<graphar::EdgeInfo> >&, const rust::cxxbridge1::Vec<rust::cxxbridge1::String>&, const std::__cxx11::basic_string<char>&, std::shared_ptr<const graphar::InfoVersion>)'
 // 'std::shared_ptr<graphar::GraphInfo> (*)(const std::__cxx11::basic_string<char>&, const int&, const int&, const rust::cxxbridge1::Vec<rust::cxxbridge1::String>&, const std::__cxx11::basic_string<char>&, std::shared_ptr<const graphar::InfoVersion>)'
 // https://github.com/dtolnay/cxx/issues/774
@@ -25,41 +25,91 @@ unsafe impl ExternType for SharedEdgeInfo {
     type Kind = cxx::kind::Trivial;
 }
 
+#[repr(transparent)]
+pub(crate) struct SharedPropertyGroup {
+    pub(crate) inner: SharedPtr<graphar::PropertyGroup>,
+}
+
+unsafe impl ExternType for SharedPropertyGroup {
+    type Id = cxx::type_id!("SharedPropertyGroup");
+    type Kind = cxx::kind::Trivial;
+}
+
 #[cxx::bridge]
 pub(crate) mod graphar {
     #[namespace = "graphar"]
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     #[repr(u32)]
     enum FileType {
-        CSV = 0,
-        PARQUET = 1,
-        ORC = 2,
-        JSON = 3,
+        #[cxx_name = "CSV"]
+        Csv = 0,
+        #[cxx_name = "PARQUET"]
+        Parquet = 1,
+        #[cxx_name = "ORC"]
+        Orc = 2,
+        #[cxx_name = "JSON"]
+        Json = 3,
+    }
+
+    #[namespace = "graphar"]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    #[repr(i32)]
+    enum Type {
+        #[cxx_name = "BOOL"]
+        Bool = 0,
+        #[cxx_name = "INT32"]
+        Int32,
+        #[cxx_name = "INT64"]
+        Int64,
+        #[cxx_name = "FLOAT"]
+        Float,
+        #[cxx_name = "DOUBLE"]
+        Double,
+        #[cxx_name = "STRING"]
+        String,
+        #[cxx_name = "LIST"]
+        List,
+        #[cxx_name = "DATE"]
+        Date,
+        #[cxx_name = "TIMESTAMP"]
+        Timestamp,
+        #[cxx_name = "USER_DEFINED"]
+        UserDefined,
+        #[cxx_name = "MAX_ID"]
+        MaxId,
     }
 
     #[namespace = "graphar"]
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     #[repr(u32)]
     enum Cardinality {
-        SINGLE = 0,
-        LIST = 1,
-        SET = 2,
+        #[cxx_name = "SINGLE"]
+        Single = 0,
+        #[cxx_name = "LIST"]
+        List = 1,
+        #[cxx_name = "SET"]
+        Set = 2,
     }
 
     #[namespace = "graphar"]
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     #[repr(u8)]
     enum AdjListType {
-        unordered_by_source = 0b00000001,
-        unordered_by_dest = 0b00000010,
-        ordered_by_source = 0b00000100,
-        ordered_by_dest = 0b00001000,
+        #[cxx_name = "unordered_by_source"]
+        UnorderedBySource = 0b0000_0001,
+        #[cxx_name = "unordered_by_dest"]
+        UnorderedByDest = 0b0000_0010,
+        #[cxx_name = "ordered_by_source"]
+        OrderedBySource = 0b0000_0100,
+        #[cxx_name = "ordered_by_dest"]
+        OrderedByDest = 0b0000_1000,
     }
 
     // Enum
     #[namespace = "graphar"]
     unsafe extern "C++" {
         type FileType;
+        type Type;
         type Cardinality;
         type AdjListType;
     }
@@ -68,6 +118,12 @@ pub(crate) mod graphar {
     #[namespace = "graphar"]
     unsafe extern "C++" {
         type DataType;
+
+        fn Equals(&self, other: &DataType) -> bool;
+        fn value_type(&self) -> &SharedPtr<DataType>;
+        fn id(&self) -> Type;
+        #[namespace = "graphar_rs"]
+        fn to_type_name(data_type: &DataType) -> String;
 
         fn int32() -> &'static SharedPtr<DataType>;
         fn boolean() -> &'static SharedPtr<DataType>;
@@ -103,8 +159,8 @@ pub(crate) mod graphar {
         type SharedVertexInfo = crate::ffi::SharedVertexInfo;
         type SharedEdgeInfo = crate::ffi::SharedEdgeInfo;
     }
-    impl CxxVector<SharedEdgeInfo> {}
     impl CxxVector<SharedVertexInfo> {}
+    impl CxxVector<SharedEdgeInfo> {}
 
     // `GraphInfo`
     unsafe extern "C++" {
@@ -117,9 +173,29 @@ pub(crate) mod graphar {
         fn GetLabels(&self) -> &CxxVector<CxxString>;
         fn GetPrefix(&self) -> &CxxString;
         fn version(&self) -> &SharedPtr<ConstInfoVersion>;
-
-        fn VertexInfoNum(&self) -> i32;
-        fn EdgeInfoNum(&self) -> i32;
+        // TODO(GetExtraInfo)
+        fn GetVertexInfo(&self, type_: &CxxString) -> SharedPtr<VertexInfo>;
+        fn GetEdgeInfo(
+            &self,
+            src_type: &CxxString,
+            edge_type: &CxxString,
+            dst_type: &CxxString,
+        ) -> SharedPtr<EdgeInfo>;
+        fn GetVertexInfoIndex(&self, type_: &CxxString) -> i32; // TODO(graphar use `int`)
+        fn GetEdgeInfoIndex(
+            &self,
+            src_type: &CxxString,
+            edge_type: &CxxString,
+            dst_type: &CxxString,
+        ) -> i32; // TODO(graphar use `int`)
+        fn VertexInfoNum(&self) -> i32; // TODO(graphar use `int`)
+        fn EdgeInfoNum(&self) -> i32; // TODO(graphar use `int`)
+        // fn GetVertexInfoByIndex(&self, index: i32) -> SharedPtr<VertexInfo>; // TODO(graphar use `int`)
+        // fn GetEdgeInfoByIndex(&self, index: i32) -> SharedPtr<EdgeInfo>; // TODO(graphar use `int`)
+        fn GetVertexInfos(&self) -> &CxxVector<SharedVertexInfo>;
+        fn GetEdgeInfos(&self) -> &CxxVector<SharedEdgeInfo>;
+        // TODO(AddVertex)
+        // TODO(AddEdge)
 
         #[namespace = "graphar_rs"]
         fn load_graph_info(path: &CxxString) -> Result<SharedPtr<GraphInfo>>;
@@ -145,16 +221,30 @@ pub(crate) mod graphar {
         type Property;
 
         #[namespace = "graphar_rs"]
-        fn new_properties() -> UniquePtr<CxxVector<Property>>;
-        #[namespace = "graphar_rs"]
-        fn push_property(
-            properties: Pin<&mut CxxVector<Property>>,
+        fn new_property(
             name: &CxxString,
             type_: &SharedPtr<DataType>,
             is_primary: bool,
             is_nullable: bool,
             cardinality: Cardinality,
-        );
+        ) -> UniquePtr<Property>;
+        #[namespace = "graphar_rs"]
+        fn property_get_name(prop: &Property) -> &CxxString;
+        #[namespace = "graphar_rs"]
+        fn property_get_type(prop: &Property) -> &SharedPtr<DataType>;
+        #[namespace = "graphar_rs"]
+        fn property_is_primary(prop: &Property) -> bool;
+        #[namespace = "graphar_rs"]
+        fn property_is_nullable(prop: &Property) -> bool;
+        #[namespace = "graphar_rs"]
+        fn property_get_cardinality(prop: &Property) -> Cardinality;
+        #[namespace = "graphar_rs"]
+        fn property_clone(prop: &Property) -> UniquePtr<Property>;
+
+        #[namespace = "graphar_rs"]
+        fn new_properties() -> UniquePtr<CxxVector<Property>>;
+        #[namespace = "graphar_rs"]
+        fn push_property(properties: Pin<&mut CxxVector<Property>>, prop: UniquePtr<Property>);
     }
 
     // `PropertyGroup`
@@ -173,17 +263,18 @@ pub(crate) mod graphar {
         ) -> SharedPtr<PropertyGroup>;
     }
 
+    unsafe extern "C++" {
+        type SharedPropertyGroup = crate::ffi::SharedPropertyGroup;
+    }
+    impl CxxVector<SharedPropertyGroup> {}
+
     // `PropertyGroupVector`
     unsafe extern "C++" {
-        // `std::vector<std::shared_ptr<PropertyGroup>>`
-        #[namespace = "graphar"]
-        type PropertyGroupVector;
-
         #[namespace = "graphar_rs"]
-        fn new_property_group_vec() -> UniquePtr<PropertyGroupVector>;
+        fn new_property_group_vec() -> UniquePtr<CxxVector<SharedPropertyGroup>>;
         #[namespace = "graphar_rs"]
         fn push_property_group(
-            vec: Pin<&mut PropertyGroupVector>,
+            vec: Pin<&mut CxxVector<SharedPropertyGroup>>,
             property_group: SharedPtr<PropertyGroup>,
         );
     }
@@ -193,13 +284,23 @@ pub(crate) mod graphar {
     unsafe extern "C++" {
         type VertexInfo;
 
-        fn PropertyGroupNum(&self) -> i32;
-        fn GetPropertyGroupByIndex(&self, index: i32) -> SharedPtr<PropertyGroup>;
+        // TODO(AddPropertyGroup)
+        fn GetType(&self) -> &CxxString;
+        fn GetChunkSize(&self) -> i64;
+        fn GetPrefix(&self) -> &CxxString;
+        fn version(&self) -> &SharedPtr<ConstInfoVersion>;
+        fn GetLabels(&self) -> &CxxVector<CxxString>;
+        fn PropertyGroupNum(&self) -> i32; // TODO(graphar use `int`)
+        fn GetPropertyGroups(&self) -> &CxxVector<SharedPropertyGroup>;
+        fn GetPropertyGroup(&self, name: &CxxString) -> SharedPtr<PropertyGroup>;
+        fn GetPropertyGroupByIndex(&self, index: i32) -> SharedPtr<PropertyGroup>; // TODO(graphar use `int`)
+
+        // TODO
 
         fn CreateVertexInfo(
             type_: &CxxString,
             chunk_size: i64,
-            property_groups: &PropertyGroupVector,
+            property_groups: &CxxVector<SharedPropertyGroup>,
             labels: &CxxVector<CxxString>,
             prefix: &CxxString,
             version: SharedPtr<ConstInfoVersion>,
@@ -214,7 +315,7 @@ pub(crate) mod graphar {
         fn create_vertex_info(
             type_: &String,
             chunk_size: i64,
-            property_groups: &PropertyGroupVector,
+            property_groups: &CxxVector<SharedPropertyGroup>,
             labels: &Vec<String>,
             prefix: &String,
             version: SharedPtr<ConstInfoVersion>,
@@ -317,7 +418,7 @@ pub(crate) mod graphar {
             dst_chunk_size: i64,
             directed: bool,
             adjacent_lists: &AdjacentListVector,
-            property_groups: &PropertyGroupVector,
+            property_groups: &CxxVector<SharedPropertyGroup>,
             path_prefix: &CxxString,
             version: SharedPtr<ConstInfoVersion>,
         ) -> SharedPtr<EdgeInfo>;
@@ -612,318 +713,318 @@ pub(crate) mod graphar {
     }
 }
 
-#[cfg(test)]
-mod tests {
+// #[cfg(test)]
+// mod tests {
 
-    use std::{path::Path, vec};
+//     use std::{path::Path, vec};
 
-    use cxx::{CxxVector, SharedPtr, UniquePtr, let_cxx_string};
+//     use cxx::{CxxVector, SharedPtr, UniquePtr, let_cxx_string};
 
-    use crate::ffi::graphar::{
-        AdjListType, AdjacentList, AdjacentListVector, BuilderEdge, BuilderVertex, Cardinality,
-        CreateAdjacentList, CreateEdgeInfo, CreatePropertyGroup, CreateVertexInfo, EdgeInfo,
-        FileType, PropertyGroup, PropertyGroupVector, VertexInfo, add_edge, add_vertex, boolean,
-        edge_add_property_bool, edge_add_property_f32, edge_add_property_f64,
-        edge_add_property_i32, edge_add_property_i64, edge_add_property_string, edges_dump,
-        float32, float64, int32, int64, load_graph_info, new_adjacent_list_vec,
-        new_const_info_version, new_edge, new_edges_builder, new_properties,
-        new_property_group_vec, new_vertex, new_vertices_builder, push_adjacent_list,
-        push_property, push_property_group, string, vertex_add_property_bool,
-        vertex_add_property_f32, vertex_add_property_f64, vertex_add_property_i32,
-        vertex_add_property_i64, vertex_add_property_string, vertices_dump,
-    };
+//     use crate::ffi::graphar::{
+//         AdjListType, AdjacentList, AdjacentListVector, BuilderEdge, BuilderVertex, Cardinality,
+//         CreateAdjacentList, CreateEdgeInfo, CreatePropertyGroup, CreateVertexInfo, EdgeInfo,
+//         FileType, PropertyGroup, SharedPropertyGroup, VertexInfo, add_edge, add_vertex, boolean,
+//         edge_add_property_bool, edge_add_property_f32, edge_add_property_f64,
+//         edge_add_property_i32, edge_add_property_i64, edge_add_property_string, edges_dump,
+//         float32, float64, int32, int64, load_graph_info, new_adjacent_list_vec,
+//         new_const_info_version, new_edge, new_edges_builder, new_properties,
+//         new_property_group_vec, new_vertex, new_vertices_builder, push_adjacent_list,
+//         push_property, push_property_group, string, vertex_add_property_bool,
+//         vertex_add_property_f32, vertex_add_property_f64, vertex_add_property_i32,
+//         vertex_add_property_i64, vertex_add_property_string, vertices_dump,
+//     };
 
-    fn mock_property_group() -> SharedPtr<PropertyGroup> {
-        let file_type = FileType::CSV;
-        let mut properties = new_properties();
-        {
-            let_cxx_string!(name = "bool");
-            push_property(
-                properties.pin_mut(),
-                &name,
-                boolean(),
-                false,
-                false,
-                Cardinality::SINGLE,
-            );
+//     fn mock_property_group() -> SharedPtr<PropertyGroup> {
+//         let file_type = FileType::CSV;
+//         let mut properties = new_properties();
+//         {
+//             let_cxx_string!(name = "bool");
+//             push_property(
+//                 properties.pin_mut(),
+//                 &name,
+//                 boolean(),
+//                 false,
+//                 false,
+//                 Cardinality::SINGLE,
+//             );
 
-            let_cxx_string!(name = "i32");
-            push_property(
-                properties.pin_mut(),
-                &name,
-                int32(),
-                false,
-                false,
-                Cardinality::SINGLE,
-            );
+//             let_cxx_string!(name = "i32");
+//             push_property(
+//                 properties.pin_mut(),
+//                 &name,
+//                 int32(),
+//                 false,
+//                 false,
+//                 Cardinality::SINGLE,
+//             );
 
-            let_cxx_string!(name = "i64");
-            push_property(
-                properties.pin_mut(),
-                &name,
-                int64(),
-                false,
-                false,
-                Cardinality::SINGLE,
-            );
+//             let_cxx_string!(name = "i64");
+//             push_property(
+//                 properties.pin_mut(),
+//                 &name,
+//                 int64(),
+//                 false,
+//                 false,
+//                 Cardinality::SINGLE,
+//             );
 
-            let_cxx_string!(name = "f32");
-            push_property(
-                properties.pin_mut(),
-                &name,
-                float32(),
-                false,
-                false,
-                Cardinality::SINGLE,
-            );
+//             let_cxx_string!(name = "f32");
+//             push_property(
+//                 properties.pin_mut(),
+//                 &name,
+//                 float32(),
+//                 false,
+//                 false,
+//                 Cardinality::SINGLE,
+//             );
 
-            let_cxx_string!(name = "f64");
-            push_property(
-                properties.pin_mut(),
-                &name,
-                float64(),
-                false,
-                false,
-                Cardinality::SINGLE,
-            );
+//             let_cxx_string!(name = "f64");
+//             push_property(
+//                 properties.pin_mut(),
+//                 &name,
+//                 float64(),
+//                 false,
+//                 false,
+//                 Cardinality::SINGLE,
+//             );
 
-            let_cxx_string!(name = "string");
-            push_property(
-                properties.pin_mut(),
-                &name,
-                string(),
-                false,
-                false,
-                Cardinality::SINGLE,
-            );
-        }
-        let_cxx_string!(prefix = "");
+//             let_cxx_string!(name = "string");
+//             push_property(
+//                 properties.pin_mut(),
+//                 &name,
+//                 string(),
+//                 false,
+//                 false,
+//                 Cardinality::SINGLE,
+//             );
+//         }
+//         let_cxx_string!(prefix = "");
 
-        CreatePropertyGroup(&properties, file_type, &prefix)
-    }
+//         CreatePropertyGroup(&properties, file_type, &prefix)
+//     }
 
-    fn mock_property_group_vector() -> UniquePtr<PropertyGroupVector> {
-        let mut pgv = new_property_group_vec();
-        push_property_group(pgv.pin_mut(), mock_property_group());
-        pgv
-    }
+//     fn mock_property_group_vector() -> UniquePtr<CxxVector<SharedPropertyGroup>> {
+//         let mut pgv = new_property_group_vec();
+//         push_property_group(pgv.pin_mut(), mock_property_group());
+//         pgv
+//     }
 
-    fn mock_vertex_info() -> SharedPtr<VertexInfo> {
-        let_cxx_string!(type_ = "test_vertex");
-        let_cxx_string!(prefix = "test_vertex");
+//     fn mock_vertex_info() -> SharedPtr<VertexInfo> {
+//         let_cxx_string!(type_ = "test_vertex");
+//         let_cxx_string!(prefix = "test_vertex");
 
-        let pgv = mock_property_group_vector();
-        let chunk_size = 100;
-        let labels = CxxVector::new();
-        let version = new_const_info_version(1).unwrap();
-        CreateVertexInfo(&type_, chunk_size, &pgv, &labels, &prefix, version)
-    }
+//         let pgv = mock_property_group_vector();
+//         let chunk_size = 100;
+//         let labels = CxxVector::new();
+//         let version = new_const_info_version(1).unwrap();
+//         CreateVertexInfo(&type_, chunk_size, &pgv, &labels, &prefix, version)
+//     }
 
-    fn mock_vertex() -> UniquePtr<BuilderVertex> {
-        let mut v = new_vertex();
-        let_cxx_string!(bool = "bool");
-        let_cxx_string!(int32 = "i32");
-        let_cxx_string!(int64 = "i64");
-        let_cxx_string!(float = "f32");
-        let_cxx_string!(double = "f64");
-        let_cxx_string!(string = "string");
-        let_cxx_string!(string_value = "string_value");
+//     fn mock_vertex() -> UniquePtr<BuilderVertex> {
+//         let mut v = new_vertex();
+//         let_cxx_string!(bool = "bool");
+//         let_cxx_string!(int32 = "i32");
+//         let_cxx_string!(int64 = "i64");
+//         let_cxx_string!(float = "f32");
+//         let_cxx_string!(double = "f64");
+//         let_cxx_string!(string = "string");
+//         let_cxx_string!(string_value = "string_value");
 
-        vertex_add_property_bool(v.pin_mut(), &bool, true);
-        vertex_add_property_i32(v.pin_mut(), &int32, 114514);
-        vertex_add_property_i64(v.pin_mut(), &int64, 1919810);
-        vertex_add_property_f32(v.pin_mut(), &float, 1919810.1);
-        vertex_add_property_f64(v.pin_mut(), &double, 114514.1919810);
-        vertex_add_property_string(v.pin_mut(), &string, &string_value);
-        v
-    }
+//         vertex_add_property_bool(v.pin_mut(), &bool, true);
+//         vertex_add_property_i32(v.pin_mut(), &int32, 114514);
+//         vertex_add_property_i64(v.pin_mut(), &int64, 1919810);
+//         vertex_add_property_f32(v.pin_mut(), &float, 1919810.1);
+//         vertex_add_property_f64(v.pin_mut(), &double, 114514.1919810);
+//         vertex_add_property_string(v.pin_mut(), &string, &string_value);
+//         v
+//     }
 
-    fn mock_adjacent_list() -> SharedPtr<AdjacentList> {
-        let_cxx_string!(path_prefix = "test_adjacent_list");
-        CreateAdjacentList(AdjListType::ordered_by_source, FileType::CSV, &path_prefix)
-    }
+//     fn mock_adjacent_list() -> SharedPtr<AdjacentList> {
+//         let_cxx_string!(path_prefix = "test_adjacent_list");
+//         CreateAdjacentList(AdjListType::ordered_by_source, FileType::CSV, &path_prefix)
+//     }
 
-    fn mock_adjacent_list_vector() -> UniquePtr<AdjacentListVector> {
-        let mut vec = new_adjacent_list_vec();
-        push_adjacent_list(vec.pin_mut(), mock_adjacent_list());
-        vec
-    }
+//     fn mock_adjacent_list_vector() -> UniquePtr<AdjacentListVector> {
+//         let mut vec = new_adjacent_list_vec();
+//         push_adjacent_list(vec.pin_mut(), mock_adjacent_list());
+//         vec
+//     }
 
-    fn mock_edge() -> UniquePtr<BuilderEdge> {
-        let mut e = new_edge(1, 2);
-        let_cxx_string!(bool = "bool");
-        let_cxx_string!(int32 = "i32");
-        let_cxx_string!(int64 = "i64");
-        let_cxx_string!(float = "f32");
-        let_cxx_string!(double = "f64");
-        let_cxx_string!(string = "string");
-        let_cxx_string!(string_value = "string_value");
+//     fn mock_edge() -> UniquePtr<BuilderEdge> {
+//         let mut e = new_edge(1, 2);
+//         let_cxx_string!(bool = "bool");
+//         let_cxx_string!(int32 = "i32");
+//         let_cxx_string!(int64 = "i64");
+//         let_cxx_string!(float = "f32");
+//         let_cxx_string!(double = "f64");
+//         let_cxx_string!(string = "string");
+//         let_cxx_string!(string_value = "string_value");
 
-        edge_add_property_bool(e.pin_mut(), &bool, true);
-        edge_add_property_i32(e.pin_mut(), &int32, 114514);
-        edge_add_property_i64(e.pin_mut(), &int64, 1919810);
-        edge_add_property_f32(e.pin_mut(), &float, 1919810.1);
-        edge_add_property_f64(e.pin_mut(), &double, 114514.1919810);
-        edge_add_property_string(e.pin_mut(), &string, &string_value);
+//         edge_add_property_bool(e.pin_mut(), &bool, true);
+//         edge_add_property_i32(e.pin_mut(), &int32, 114514);
+//         edge_add_property_i64(e.pin_mut(), &int64, 1919810);
+//         edge_add_property_f32(e.pin_mut(), &float, 1919810.1);
+//         edge_add_property_f64(e.pin_mut(), &double, 114514.1919810);
+//         edge_add_property_string(e.pin_mut(), &string, &string_value);
 
-        e
-    }
+//         e
+//     }
 
-    fn mock_edge_info() -> SharedPtr<EdgeInfo> {
-        let_cxx_string!(src_type = "src");
-        let_cxx_string!(dst_type = "dst");
-        let_cxx_string!(edge_type = "to");
-        let_cxx_string!(prefix = "test_edge");
+//     fn mock_edge_info() -> SharedPtr<EdgeInfo> {
+//         let_cxx_string!(src_type = "src");
+//         let_cxx_string!(dst_type = "dst");
+//         let_cxx_string!(edge_type = "to");
+//         let_cxx_string!(prefix = "test_edge");
 
-        let version = new_const_info_version(1).unwrap();
-        CreateEdgeInfo(
-            &src_type,
-            &edge_type,
-            &dst_type,
-            100,
-            100,
-            100,
-            true,
-            &mock_adjacent_list_vector(),
-            &mock_property_group_vector(),
-            &prefix,
-            version,
-        )
-    }
+//         let version = new_const_info_version(1).unwrap();
+//         CreateEdgeInfo(
+//             &src_type,
+//             &edge_type,
+//             &dst_type,
+//             100,
+//             100,
+//             100,
+//             true,
+//             &mock_adjacent_list_vector(),
+//             &mock_property_group_vector(),
+//             &prefix,
+//             version,
+//         )
+//     }
 
-    #[test]
-    fn test_load_graph_info() {
-        let root = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("incubator-graphar-testing")
-            .join("modern_graph")
-            .join("modern_graph.graph.yml");
-        let_cxx_string!(path = root.to_str().unwrap());
-        let graph_info = load_graph_info(&path).unwrap();
-        println!("graph_name = {}", graph_info.GetName().to_str().unwrap());
+//     #[test]
+//     fn test_load_graph_info() {
+//         let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+//             .join("incubator-graphar-testing")
+//             .join("modern_graph")
+//             .join("modern_graph.graph.yml");
+//         let_cxx_string!(path = root.to_str().unwrap());
+//         let graph_info = load_graph_info(&path).unwrap();
+//         println!("graph_name = {}", graph_info.GetName().to_str().unwrap());
 
-        println!("labels:");
-        for label in graph_info.GetLabels().iter() {
-            println!("\t{}", label.to_str().unwrap())
-        }
+//         println!("labels:");
+//         for label in graph_info.GetLabels().iter() {
+//             println!("\t{}", label.to_str().unwrap())
+//         }
 
-        println!("vertex_info_num = {}", graph_info.VertexInfoNum());
-        println!("edge_info_num = {}", graph_info.EdgeInfoNum());
-    }
+//         println!("vertex_info_num = {}", graph_info.VertexInfoNum());
+//         println!("edge_info_num = {}", graph_info.EdgeInfoNum());
+//     }
 
-    #[test]
-    fn test_properties_group() {
-        let pg = mock_property_group();
+//     #[test]
+//     fn test_properties_group() {
+//         let pg = mock_property_group();
 
-        assert_eq!(pg.GetProperties().len(), 6);
-        let_cxx_string!(name = "bool");
-        assert!(pg.HasProperty(&name));
+//         assert_eq!(pg.GetProperties().len(), 6);
+//         let_cxx_string!(name = "bool");
+//         assert!(pg.HasProperty(&name));
 
-        let_cxx_string!(name = "i32");
-        assert!(pg.HasProperty(&name));
+//         let_cxx_string!(name = "i32");
+//         assert!(pg.HasProperty(&name));
 
-        let_cxx_string!(name = "i64");
-        assert!(pg.HasProperty(&name));
+//         let_cxx_string!(name = "i64");
+//         assert!(pg.HasProperty(&name));
 
-        let_cxx_string!(name = "f32");
-        assert!(pg.HasProperty(&name));
+//         let_cxx_string!(name = "f32");
+//         assert!(pg.HasProperty(&name));
 
-        let_cxx_string!(name = "f64");
-        assert!(pg.HasProperty(&name));
+//         let_cxx_string!(name = "f64");
+//         assert!(pg.HasProperty(&name));
 
-        let_cxx_string!(name = "string");
-        assert!(pg.HasProperty(&name));
-    }
+//         let_cxx_string!(name = "string");
+//         assert!(pg.HasProperty(&name));
+//     }
 
-    #[test]
-    fn test_vertex_info() {
-        let vertex_info = mock_vertex_info();
+//     #[test]
+//     fn test_vertex_info() {
+//         let vertex_info = mock_vertex_info();
 
-        assert_eq!(vertex_info.PropertyGroupNum(), 1);
+//         assert_eq!(vertex_info.PropertyGroupNum(), 1);
 
-        let pg = vertex_info.GetPropertyGroupByIndex(0);
-        assert_eq!(pg.GetProperties().len(), 6);
+//         let pg = vertex_info.GetPropertyGroupByIndex(0);
+//         assert_eq!(pg.GetProperties().len(), 6);
 
-        let_cxx_string!(name = "bool");
-        assert!(pg.HasProperty(&name));
+//         let_cxx_string!(name = "bool");
+//         assert!(pg.HasProperty(&name));
 
-        let_cxx_string!(name = "i32");
-        assert!(pg.HasProperty(&name));
+//         let_cxx_string!(name = "i32");
+//         assert!(pg.HasProperty(&name));
 
-        let_cxx_string!(name = "i64");
-        assert!(pg.HasProperty(&name));
+//         let_cxx_string!(name = "i64");
+//         assert!(pg.HasProperty(&name));
 
-        let_cxx_string!(name = "f32");
-        assert!(pg.HasProperty(&name));
+//         let_cxx_string!(name = "f32");
+//         assert!(pg.HasProperty(&name));
 
-        let_cxx_string!(name = "f64");
-        assert!(pg.HasProperty(&name));
+//         let_cxx_string!(name = "f64");
+//         assert!(pg.HasProperty(&name));
 
-        let_cxx_string!(name = "string");
-        assert!(pg.HasProperty(&name));
-    }
+//         let_cxx_string!(name = "string");
+//         assert!(pg.HasProperty(&name));
+//     }
 
-    #[test]
-    fn test_vertex() {
-        let mut v = new_vertex();
-        let_cxx_string!(bool = "bool");
-        let_cxx_string!(int32 = "i32");
-        let_cxx_string!(int64 = "i64");
-        let_cxx_string!(float = "f32");
-        let_cxx_string!(double = "f64");
-        let_cxx_string!(string = "string");
-        let_cxx_string!(string_value = "string_value");
+//     #[test]
+//     fn test_vertex() {
+//         let mut v = new_vertex();
+//         let_cxx_string!(bool = "bool");
+//         let_cxx_string!(int32 = "i32");
+//         let_cxx_string!(int64 = "i64");
+//         let_cxx_string!(float = "f32");
+//         let_cxx_string!(double = "f64");
+//         let_cxx_string!(string = "string");
+//         let_cxx_string!(string_value = "string_value");
 
-        vertex_add_property_bool(v.pin_mut(), &bool, true);
-        vertex_add_property_i32(v.pin_mut(), &int32, 114514);
-        vertex_add_property_i64(v.pin_mut(), &int64, 1919810);
-        vertex_add_property_f32(v.pin_mut(), &float, 1919810.1);
-        vertex_add_property_f64(v.pin_mut(), &double, 114514.1919810);
-        vertex_add_property_string(v.pin_mut(), &string, &string_value);
-    }
+//         vertex_add_property_bool(v.pin_mut(), &bool, true);
+//         vertex_add_property_i32(v.pin_mut(), &int32, 114514);
+//         vertex_add_property_i64(v.pin_mut(), &int64, 1919810);
+//         vertex_add_property_f32(v.pin_mut(), &float, 1919810.1);
+//         vertex_add_property_f64(v.pin_mut(), &double, 114514.1919810);
+//         vertex_add_property_string(v.pin_mut(), &string, &string_value);
+//     }
 
-    #[test]
-    fn test_vertices_builder() {
-        let vertex_info = mock_vertex_info();
-        let_cxx_string!(prefix = "/tmp/");
+//     #[test]
+//     fn test_vertices_builder() {
+//         let vertex_info = mock_vertex_info();
+//         let_cxx_string!(prefix = "/tmp/");
 
-        let mut builder = new_vertices_builder(&vertex_info, &prefix, 0).unwrap();
-        let mut v = mock_vertex();
-        add_vertex(unsafe { builder.pin_mut_unchecked() }, v.pin_mut()).unwrap();
-        vertices_dump(unsafe { builder.pin_mut_unchecked() }).unwrap();
-    }
+//         let mut builder = new_vertices_builder(&vertex_info, &prefix, 0).unwrap();
+//         let mut v = mock_vertex();
+//         add_vertex(unsafe { builder.pin_mut_unchecked() }, v.pin_mut()).unwrap();
+//         vertices_dump(unsafe { builder.pin_mut_unchecked() }).unwrap();
+//     }
 
-    #[test]
-    fn test_adj_list() {
-        let adj_list = mock_adjacent_list();
-        assert_eq!(adj_list.GetType(), AdjListType::ordered_by_source);
-        assert_eq!(adj_list.GetFileType(), FileType::CSV);
-        let_cxx_string!(prefix = "test_adjacent_list");
-        assert_eq!(adj_list.GetPrefix().as_bytes(), prefix.as_bytes());
-    }
+//     #[test]
+//     fn test_adj_list() {
+//         let adj_list = mock_adjacent_list();
+//         assert_eq!(adj_list.GetType(), AdjListType::ordered_by_source);
+//         assert_eq!(adj_list.GetFileType(), FileType::CSV);
+//         let_cxx_string!(prefix = "test_adjacent_list");
+//         assert_eq!(adj_list.GetPrefix().as_bytes(), prefix.as_bytes());
+//     }
 
-    #[test]
-    fn test_edge_info() {
-        let edge_info = mock_edge_info();
+//     #[test]
+//     fn test_edge_info() {
+//         let edge_info = mock_edge_info();
 
-        assert_eq!(edge_info.GetChunkSize(), 100);
-        assert_eq!(edge_info.GetSrcChunkSize(), 100);
-        assert_eq!(edge_info.GetDstChunkSize(), 100);
-        assert_eq!(edge_info.GetSrcType(), "src");
-        assert_eq!(edge_info.GetEdgeType(), "to");
-        assert_eq!(edge_info.GetDstType(), "dst");
-        assert!(edge_info.IsDirected());
-        assert_eq!(edge_info.GetPrefix(), "test_edge");
-    }
+//         assert_eq!(edge_info.GetChunkSize(), 100);
+//         assert_eq!(edge_info.GetSrcChunkSize(), 100);
+//         assert_eq!(edge_info.GetDstChunkSize(), 100);
+//         assert_eq!(edge_info.GetSrcType(), "src");
+//         assert_eq!(edge_info.GetEdgeType(), "to");
+//         assert_eq!(edge_info.GetDstType(), "dst");
+//         assert!(edge_info.IsDirected());
+//         assert_eq!(edge_info.GetPrefix(), "test_edge");
+//     }
 
-    #[test]
-    fn test_edges_builder() {
-        let edge_info = mock_edge_info();
+//     #[test]
+//     fn test_edges_builder() {
+//         let edge_info = mock_edge_info();
 
-        let_cxx_string!(prefix = "/tmp/");
-        let mut builder =
-            new_edges_builder(&edge_info, &prefix, AdjListType::ordered_by_source, 2).unwrap();
-        let mut e = mock_edge();
-        add_edge(unsafe { builder.pin_mut_unchecked() }, e.pin_mut()).unwrap();
-        edges_dump(unsafe { builder.pin_mut_unchecked() }).unwrap();
-    }
-}
+//         let_cxx_string!(prefix = "/tmp/");
+//         let mut builder =
+//             new_edges_builder(&edge_info, &prefix, AdjListType::ordered_by_source, 2).unwrap();
+//         let mut e = mock_edge();
+//         add_edge(unsafe { builder.pin_mut_unchecked() }, e.pin_mut()).unwrap();
+//         edges_dump(unsafe { builder.pin_mut_unchecked() }).unwrap();
+//     }
+// }

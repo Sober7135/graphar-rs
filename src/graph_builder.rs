@@ -200,12 +200,7 @@ impl EdgesBuilder {
     ) -> anyhow::Result<Self> {
         let prefix_string = path_prefix.as_ref().to_string_lossy().into_owned();
         let_cxx_string!(prefix = prefix_string);
-        let inner = new_edges_builder(
-            &edge_info.inner,
-            &prefix,
-            adj_list_type.into(),
-            vertices_num,
-        )?;
+        let inner = new_edges_builder(&edge_info.inner, &prefix, adj_list_type, vertices_num)?;
         Ok(Self { inner })
     }
 

@@ -9,6 +9,7 @@
 #include "graphar/high-level/edges_builder.h"
 #include "graphar/high-level/graph_reader.h"
 #include "graphar/high-level/vertices_builder.h"
+#include "graphar/types.h"
 #include "graphar/version_parser.h"
 #include "rust/cxx.h"
 
@@ -17,6 +18,7 @@
 // Used for `create_graph_info`
 using SharedVertexInfo = std::shared_ptr<graphar::VertexInfo>;
 using SharedEdgeInfo = std::shared_ptr<graphar::EdgeInfo>;
+using SharedPropertyGroup = std::shared_ptr<graphar::PropertyGroup>;
 
 namespace graphar {
 using ConstInfoVersion = const InfoVersion;
@@ -27,6 +29,9 @@ using i32 = int32_t;
 using i64 = int64_t;
 using f32 = float;
 using f64 = double;
+
+// `DataType`
+rust::String to_type_name(const graphar::DataType &type);
 
 // InfoVersion
 std::shared_ptr<graphar::InfoVersion> new_info_version(int version);
@@ -45,12 +50,23 @@ void graph_info_save(const graphar::GraphInfo &graph_info,
 std::unique_ptr<std::string>
 graph_info_dump(const graphar::GraphInfo &graph_info);
 
+std::unique_ptr<graphar::Property>
+new_property(const std::string &name,
+             const std::shared_ptr<graphar::DataType> &type = nullptr,
+             bool is_primary = false, bool is_nullable = true,
+             graphar::Cardinality cardinality = graphar::Cardinality::SINGLE);
+const std::string &property_get_name(const graphar::Property &prop);
+const std::shared_ptr<graphar::DataType> &
+property_get_type(const graphar::Property &prop);
+bool property_is_primary(const graphar::Property &prop);
+bool property_is_nullable(const graphar::Property &prop);
+graphar::Cardinality property_get_cardinality(const graphar::Property &prop);
+std::unique_ptr<graphar::Property>
+property_clone(const graphar::Property &prop);
+
 std::unique_ptr<std::vector<graphar::Property>> new_properties();
 void push_property(std::vector<graphar::Property> &properties,
-                   const std::string &name,
-                   const std::shared_ptr<graphar::DataType> &type,
-                   bool is_primary, bool is_nullable,
-                   graphar::Cardinality cardinality);
+                   std::unique_ptr<graphar::Property> prop);
 
 std::unique_ptr<graphar::PropertyGroupVector> new_property_group_vec();
 void push_property_group(
