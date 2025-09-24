@@ -2,7 +2,8 @@ use graphar::{
     graph_builder::{self, EdgesBuilder, VerticesBuilder},
     graph_info::{
         AdjListType, AdjacentList, AdjacentListVector, Cardinality, DataType, EdgeInfo, FileType,
-        InfoVersion, Property, PropertyGroup, PropertyGroupVector, PropertyVec, VertexInfo,
+        GraphInfo, InfoVersion, Property, PropertyGroup, PropertyGroupVector, PropertyVec,
+        VertexInfo,
     },
 };
 
@@ -106,6 +107,16 @@ fn dump() {
     e.add_property("friend".into(), "bob".to_string());
     edge_builder.add_edge(e).unwrap();
     edge_builder.dump().unwrap();
+
+    let graph_info = GraphInfo::new(
+        "test_graphar",
+        &vec![vertex_info],
+        &vec![edge_info],
+        &vec![],
+        "./",
+        Some(version.clone()),
+    );
+    graph_info.save("/tmp/test_graphar/test.graph.yml").unwrap();
 }
 
 fn main() {

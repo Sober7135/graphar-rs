@@ -347,17 +347,17 @@ pub struct GraphInfo {
 // std::shared_ptr<graphar::GraphInfo> (*)(const std::__cxx11::basic_string<char>&, const std::vector<std::shared_ptr<graphar::VertexInfo> >&, const std::vector<std::shared_ptr<graphar::EdgeInfo> >&, const rust::cxxbridge1::Vec<rust::cxxbridge1::String>&, const std::__cxx11::basic_string<char>&, std::shared_ptr<const graphar::InfoVersion>)'
 // std::shared_ptr<graphar::GraphInfo> (*)(const rust::cxxbridge1::String&, const std::vector<graphar::VertexInfo>&, const std::vector<graphar::EdgeInfo>&, const rust::cxxbridge1::Vec<rust::cxxbridge1::String>&, const std::__cxx11::basic_string<char>&, std::shared_ptr<const graphar::InfoVersion>)'
 impl GraphInfo {
-    pub fn new(
-        name: &String,
+    pub fn new<S: AsRef<str>, P: AsRef<Path>>(
+        name: S,
         vertex_infos: &Vec<VertexInfo>,
         edge_infos: &Vec<EdgeInfo>,
         labels: &Vec<String>,
-        prefix: &String,
+        prefix: P,
         version: Option<InfoVersion>,
         // TODO(extra_info)
     ) -> Self {
-        let_cxx_string!(name = name);
-        let_cxx_string!(prefix = prefix);
+        let_cxx_string!(name = name.as_ref());
+        let_cxx_string!(prefix = prefix.as_ref().to_string_lossy().into_owned());
 
         let mut v_infos = CxxVector::new();
         v_infos.pin_mut().reserve(vertex_infos.len());
