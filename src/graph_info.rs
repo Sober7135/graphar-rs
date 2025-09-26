@@ -344,8 +344,7 @@ impl VertexInfo {
 pub struct GraphInfo {
     pub(crate) inner: SharedPtr<ffi::graphar::GraphInfo>,
 }
-// std::shared_ptr<graphar::GraphInfo> (*)(const std::__cxx11::basic_string<char>&, const std::vector<std::shared_ptr<graphar::VertexInfo> >&, const std::vector<std::shared_ptr<graphar::EdgeInfo> >&, const rust::cxxbridge1::Vec<rust::cxxbridge1::String>&, const std::__cxx11::basic_string<char>&, std::shared_ptr<const graphar::InfoVersion>)'
-// std::shared_ptr<graphar::GraphInfo> (*)(const rust::cxxbridge1::String&, const std::vector<graphar::VertexInfo>&, const std::vector<graphar::EdgeInfo>&, const rust::cxxbridge1::Vec<rust::cxxbridge1::String>&, const std::__cxx11::basic_string<char>&, std::shared_ptr<const graphar::InfoVersion>)'
+
 impl GraphInfo {
     pub fn new<S: AsRef<str>, P: AsRef<Path>>(
         name: S,
@@ -593,6 +592,83 @@ impl EdgeInfo {
         Self { inner }
     }
 
+    pub fn src_type(&self) -> String {
+        cxx_string_to_string(self.inner.GetSrcType())
+    }
+
+    pub fn dst_type(&self) -> String {
+        cxx_string_to_string(self.inner.GetDstType())
+    }
+
+    pub fn edge_type(&self) -> String {
+        cxx_string_to_string(self.inner.GetEdgeType())
+    }
+
+    pub fn chunk_size(&self) -> i64 {
+        self.inner.GetChunkSize()
+    }
+
+    pub fn src_chunk_size(&self) -> i64 {
+        self.inner.GetSrcChunkSize()
+    }
+
+    pub fn dst_chunk_size(&self) -> i64 {
+        self.inner.GetDstChunkSize()
+    }
+
+    pub fn prefix(&self) -> String {
+        cxx_string_to_string(self.inner.GetPrefix())
+    }
+
+    pub fn is_directed(&self) -> bool {
+        self.inner.IsDirected()
+    }
+
+    pub fn version(&self) -> InfoVersion {
+        InfoVersion {
+            inner: self.inner.version().clone(),
+        }
+    }
+
+    pub fn has_adjacent_list_type(&self, adj_list_type: AdjListType) -> bool {
+        self.inner.HasAdjacentListType(adj_list_type)
+    }
+
+    pub fn adjacent_list(&self, adj_list_type: AdjListType) -> AdjacentList {
+        AdjacentList {
+            inner: self.inner.GetAdjacentList(adj_list_type),
+        }
+    }
+
+    pub fn property_group_num(&self) -> i32 {
+        self.inner.PropertyGroupNum()
+    }
+
+    pub fn property_groups(&self) -> Vec<PropertyGroup> {
+        let pgs_cxx = self.inner.GetPropertyGroups();
+        let mut pgs = Vec::with_capacity(pgs_cxx.len());
+        for pg in pgs_cxx.iter() {
+            pgs.push(PropertyGroup {
+                inner: pg.inner.clone(),
+            });
+        }
+
+        pgs
+    }
+
+    pub fn property_group<S: AsRef<str>>(&self, property_name: S) -> PropertyGroup {
+        let_cxx_string!(name = property_name.as_ref());
+        PropertyGroup {
+            inner: self.inner.GetPropertyGroup(&name),
+        }
+    }
+
+    pub fn property_group_by_index(&self, index: i32) -> PropertyGroup {
+        PropertyGroup {
+            inner: self.inner.GetPropertyGroupByIndex(index),
+        }
+    }
+
     pub fn save<P: AsRef<Path>>(&self, path: P) -> anyhow::Result<()> {
         let path_string = path.as_ref().to_string_lossy().into_owned();
         let_cxx_string!(p = path_string);
@@ -602,30 +678,5 @@ impl EdgeInfo {
 
     pub fn dump(&self) -> anyhow::Result<String> {
         Ok(edge_info_dump(&self.inner).map(|u| u.to_string())?)
-    }
-
-    pub fn src_type(&self) -> String {
-        cxx_string_to_string(self.inner.GetSrcType())
-    }
-    pub fn dst_type(&self) -> String {
-        cxx_string_to_string(self.inner.GetDstType())
-    }
-    pub fn edge_type(&self) -> String {
-        cxx_string_to_string(self.inner.GetEdgeType())
-    }
-    pub fn chunk_size(&self) -> i64 {
-        self.inner.GetChunkSize()
-    }
-    pub fn src_chunk_size(&self) -> i64 {
-        self.inner.GetSrcChunkSize()
-    }
-    pub fn dst_chunk_size(&self) -> i64 {
-        self.inner.GetDstChunkSize()
-    }
-    pub fn prefix(&self) -> String {
-        cxx_string_to_string(self.inner.GetPrefix())
-    }
-    pub fn directed(&self) -> bool {
-        self.inner.IsDirected()
     }
 }

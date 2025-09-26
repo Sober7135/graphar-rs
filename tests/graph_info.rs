@@ -92,7 +92,7 @@ fn edge_info_new_getters_dump_and_save() -> Result<()> {
     assert_eq!(ei.dst_type(), "person");
     assert_eq!(ei.edge_type(), "knows");
     assert_eq!(ei.chunk_size(), 10);
-    assert!(ei.directed());
+    assert!(ei.is_directed());
 
     let dump = ei.dump()?;
     assert!(dump.contains("edge_type: knows"));

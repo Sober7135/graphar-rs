@@ -400,13 +400,23 @@ pub(crate) mod graphar {
         type EdgeInfo;
 
         fn GetSrcType(&self) -> &CxxString;
-        fn GetDstType(&self) -> &CxxString;
         fn GetEdgeType(&self) -> &CxxString;
+        fn GetDstType(&self) -> &CxxString;
         fn GetChunkSize(&self) -> i64;
         fn GetSrcChunkSize(&self) -> i64;
         fn GetDstChunkSize(&self) -> i64;
         fn GetPrefix(&self) -> &CxxString;
         fn IsDirected(&self) -> bool;
+        fn version(&self) -> &SharedPtr<ConstInfoVersion>;
+        fn HasAdjacentListType(&self, adj_list_type: AdjListType) -> bool;
+        fn HasProperty(&self, property_name: &CxxString) -> bool;
+        fn HasPropertyGroup(&self, property_group: &SharedPtr<PropertyGroup>) -> bool;
+        fn GetAdjacentList(&self, adj_list_type: AdjListType) -> SharedPtr<AdjacentList>;
+        fn PropertyGroupNum(&self) -> i32; // TODO(graphar use `int`)
+        fn GetPropertyGroups(&self) -> &CxxVector<SharedPropertyGroup>;
+        fn GetPropertyGroup(&self, property: &CxxString) -> SharedPtr<PropertyGroup>;
+        fn GetPropertyGroupByIndex(&self, index: i32) -> SharedPtr<PropertyGroup>; // TODO(graphar use `int`)
+        // Skip *FilePath
 
         #[allow(clippy::too_many_arguments)]
         fn CreateEdgeInfo(
@@ -427,6 +437,13 @@ pub(crate) mod graphar {
         fn edge_info_save(edge_info: &EdgeInfo, path: &CxxString) -> Result<()>;
         #[namespace = "graphar_rs"]
         fn edge_info_dump(edge_info: &EdgeInfo) -> Result<UniquePtr<CxxString>>;
+        // #[namespace = "graphar_rs"]
+        // fn edge_info_get_vertices_num_file_path(adj_list_type: AdjListType) -> Result<String>;
+        // #[namespace = "graphar_rs"]
+        // fn edge_info_get_edges_num_file_path(
+        //     vertex_chunk_index: i64,
+        //     adj_list_type: AdjListType,
+        // ) -> Result<String>;
     }
 
     // `builder::Edge`
