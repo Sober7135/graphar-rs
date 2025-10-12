@@ -27,7 +27,7 @@ fn dump() {
         Cardinality::Single,
     ));
 
-    let vertex_prop_group = PropertyGroup::new(vertex_props, FileType::Csv, "");
+    let vertex_prop_group = PropertyGroup::new(vertex_props, FileType::Parquet, "");
     let mut vertex_prop_groups = PropertyGroupVector::new();
     vertex_prop_groups.add_property_group(vertex_prop_group);
 
@@ -60,7 +60,7 @@ fn dump() {
 
     // `EdgeInfo`
     let mut adjs = AdjacentListVector::new();
-    let adj = AdjacentList::new(AdjListType::OrderedBySource, FileType::Csv, "");
+    let adj = AdjacentList::new(AdjListType::OrderedBySource, FileType::Orc, "");
     adjs.add_adjacent_list(adj);
 
     let mut edge_props = PropertyVec::new();
