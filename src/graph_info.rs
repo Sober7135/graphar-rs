@@ -1,7 +1,10 @@
 // Currently do not support cardinality
 
 pub use ffi::graphar::{AdjListType, Cardinality, FileType, Type};
-use std::{fmt::Display, path::Path};
+use std::{
+    fmt::{Debug, Display},
+    path::Path,
+};
 
 use cxx::{CxxVector, SharedPtr, UniquePtr, let_cxx_string};
 
@@ -28,6 +31,13 @@ pub struct DataType {
 
 impl PartialEq for DataType {
     fn eq(&self, other: &Self) -> bool {
+        if self.inner.is_null() && other.inner.is_null() {
+            return true;
+        }
+        if self.inner.is_null() || other.inner.is_null() {
+            return false;
+        }
+
         self.inner
             .Equals(other.inner.as_ref().expect("rhs is nullptr"))
     }
@@ -37,7 +47,21 @@ impl Eq for DataType {}
 
 impl Display for DataType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", to_type_name(&self.inner))
+        if self.inner.is_null() {
+            write!(f, "null")
+        } else {
+            write!(f, "{}", to_type_name(&self.inner))
+        }
+    }
+}
+
+impl Debug for DataType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.inner.is_null() {
+            write!(f, "null")
+        } else {
+            write!(f, "{}", to_type_name(&self.inner))
+        }
     }
 }
 
@@ -52,7 +76,7 @@ impl DataType {
         self.inner.id()
     }
 
-    pub fn boolean() -> Self {
+    pub fn bool() -> Self {
         Self {
             inner: boolean().clone(),
         }
@@ -100,7 +124,7 @@ impl DataType {
         }
     }
 
-    pub fn list(value_type: DataType) -> Self {
+    pub fn list(value_type: &DataType) -> Self {
         Self {
             inner: list(&value_type.inner),
         }
@@ -678,5 +702,179 @@ impl EdgeInfo {
 
     pub fn dump(&self) -> anyhow::Result<String> {
         Ok(edge_info_dump(&self.inner).map(|u| u.to_string())?)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    impl DataType {
+        fn null() -> Self {
+            Self {
+                inner: SharedPtr::null(),
+            }
+        }
+    }
+
+    #[test]
+    fn test_data_type_equality() {
+        let float = DataType::float32();
+        let float1 = DataType::float32();
+        assert_eq!(float, float1);
+
+        let double = DataType::float64();
+        assert_ne!(float, double);
+
+        let list_of_float_1 = DataType::list(&float);
+        let list_of_float_2 = DataType::list(&float);
+        assert_eq!(list_of_float_1, list_of_float_2);
+
+        let list_of_double = DataType::list(&double);
+        assert_ne!(list_of_float_1, list_of_double);
+    }
+
+    #[test]
+    fn test_data_type_display() {
+        let bool_type = DataType::bool();
+        assert_eq!(format!("{}", bool_type), "bool");
+
+        let int32 = DataType::int32();
+        assert_eq!(format!("{}", int32), "int32");
+
+        let int64 = DataType::int64();
+        assert_eq!(format!("{}", int64), "int64");
+
+        let float32 = DataType::float32();
+        assert_eq!(format!("{}", float32), "float");
+
+        let float64 = DataType::float64();
+        assert_eq!(format!("{}", float64), "double");
+
+        let string = DataType::string();
+        assert_eq!(format!("{}", string), "string");
+
+        let date = DataType::date();
+        assert_eq!(format!("{}", date), "date");
+
+        let timestamp = DataType::timestamp();
+        assert_eq!(format!("{}", timestamp), "timestamp");
+
+        let list_of_int32 = DataType::list(&int32);
+        assert_eq!(format!("{}", list_of_int32), "list<int32>");
+
+        let nested_list = DataType::list(&list_of_int32);
+        assert_eq!(format!("{}", nested_list), "list<list<int32>>");
+
+        assert_eq!(format!("{}", int32.value_type()), "null");
+    }
+
+    #[test]
+    fn test_data_type_debug() {
+        let bool_type = DataType::bool();
+        assert_eq!(format!("{:?}", bool_type), "bool");
+
+        let int32 = DataType::int32();
+        assert_eq!(format!("{:?}", int32), "int32");
+
+        let int64 = DataType::int64();
+        assert_eq!(format!("{:?}", int64), "int64");
+
+        let float32 = DataType::float32();
+        assert_eq!(format!("{:?}", float32), "float");
+
+        let float64 = DataType::float64();
+        assert_eq!(format!("{:?}", float64), "double");
+
+        let string = DataType::string();
+        assert_eq!(format!("{:?}", string), "string");
+
+        let date = DataType::date();
+        assert_eq!(format!("{:?}", date), "date");
+
+        let timestamp = DataType::timestamp();
+        assert_eq!(format!("{:?}", timestamp), "timestamp");
+
+        let list_of_int32 = DataType::list(&int32);
+        assert_eq!(format!("{:?}", list_of_int32), "list<int32>");
+
+        let nested_list = DataType::list(&list_of_int32);
+        assert_eq!(format!("{:?}", nested_list), "list<list<int32>>");
+
+        assert_eq!(format!("{:?}", int32.value_type()), "null");
+    }
+
+    #[test]
+    fn test_data_type_value_type() {
+        let bool_type = DataType::bool();
+        assert_eq!(bool_type.value_type(), DataType::null());
+
+        let int32 = DataType::int32();
+        assert_eq!(int32.value_type(), DataType::null());
+
+        let int64 = DataType::int64();
+        assert_eq!(int64.value_type(), DataType::null());
+
+        let float32 = DataType::float32();
+        assert_eq!(float32.value_type(), DataType::null());
+
+        let float64 = DataType::float64();
+        assert_eq!(float64.value_type(), DataType::null());
+
+        let string = DataType::string();
+        assert_eq!(string.value_type(), DataType::null());
+
+        let date = DataType::date();
+        assert_eq!(date.value_type(), DataType::null());
+
+        let timestamp = DataType::timestamp();
+        assert_eq!(timestamp.value_type(), DataType::null());
+
+        let list_of_int32 = DataType::list(&int32);
+        assert_eq!(list_of_int32.value_type(), int32);
+
+        let list_of_float32 = DataType::list(&float32);
+        assert_eq!(list_of_float32.value_type(), float32);
+
+        let list_of_string = DataType::list(&string);
+        assert_eq!(list_of_string.value_type(), string);
+
+        let nested_list = DataType::list(&list_of_int32);
+        assert_eq!(nested_list.value_type(), list_of_int32);
+    }
+
+    #[test]
+    fn test_data_type_id() {
+        let bool_type = DataType::bool();
+        assert_eq!(bool_type.id(), Type::Bool);
+
+        let int32 = DataType::int32();
+        assert_eq!(int32.id(), Type::Int32);
+
+        let int64 = DataType::int64();
+        assert_eq!(int64.id(), Type::Int64);
+
+        let float32 = DataType::float32();
+        assert_eq!(float32.id(), Type::Float);
+
+        let float64 = DataType::float64();
+        assert_eq!(float64.id(), Type::Double);
+
+        let string = DataType::string();
+        assert_eq!(string.id(), Type::String);
+
+        let date = DataType::date();
+        assert_eq!(date.id(), Type::Date);
+
+        let timestamp = DataType::timestamp();
+        assert_eq!(timestamp.id(), Type::Timestamp);
+
+        let list_of_int32 = DataType::list(&int32);
+        assert_eq!(list_of_int32.id(), Type::List);
+        assert_eq!(list_of_int32.value_type().id(), Type::Int32);
+
+        let list_of_lists = DataType::list(&list_of_int32);
+        assert_eq!(list_of_lists.id(), Type::List);
+        assert_eq!(list_of_lists.value_type().id(), Type::List);
     }
 }
