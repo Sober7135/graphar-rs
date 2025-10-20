@@ -707,6 +707,8 @@ impl EdgeInfo {
 
 #[cfg(test)]
 mod tests {
+    use tempfile::tempdir;
+
     use super::*;
 
     impl DataType {
@@ -876,5 +878,174 @@ mod tests {
         let list_of_lists = DataType::list(&list_of_int32);
         assert_eq!(list_of_lists.id(), Type::List);
         assert_eq!(list_of_lists.value_type().id(), Type::List);
+    }
+
+    #[test]
+    fn property_group_has_property() {
+        let mut props = PropertyVec::new();
+        props.add_property(Property::new(
+            "id",
+            &DataType::int64(),
+            false,
+            false,
+            Cardinality::Single,
+        ));
+        props.add_property(Property::new(
+            "name",
+            &DataType::string(),
+            false,
+            false,
+            Cardinality::Single,
+        ));
+        let pg = PropertyGroup::new(props, FileType::Csv, "");
+        assert!(pg.has_property("id"));
+        assert!(pg.has_property("name"));
+        assert!(!pg.has_property("missing"));
+    }
+
+    #[test]
+    fn test_adjacent_list_new_fields() {
+        let adj = AdjacentList::new(AdjListType::OrderedBySource, FileType::Csv, "adj/");
+        assert!(matches!(adj.list_type(), AdjListType::OrderedBySource));
+        assert!(matches!(adj.file_type(), FileType::Csv));
+        assert_eq!(adj.prefix(), "adj/");
+    }
+
+    #[test]
+    fn test_vertex_info_new_dump_and_save() -> anyhow::Result<()> {
+        let mut props = PropertyVec::new();
+        props.add_property(Property::new(
+            "id",
+            &DataType::int64(),
+            false,
+            false,
+            Cardinality::Single,
+        ));
+        let pg = PropertyGroup::new(props, FileType::Csv, "");
+        let mut pgv = PropertyGroupVector::new();
+        pgv.add_property_group(pg);
+        let ver = InfoVersion::new(1)?;
+
+        let vi = VertexInfo::new("person".into(), 2, pgv, vec![], "", ver);
+        let dump = vi.dump()?;
+        assert!(dump.contains("type: person"));
+        assert!(dump.contains("chunk_size: 2"));
+
+        let dir = tempdir()?;
+        let path = dir.path().join("person.vertex.yml");
+        vi.save(&path)?;
+        assert!(path.exists());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_edge_info_new_getters_dump_and_save() -> anyhow::Result<()> {
+        let mut adjs = AdjacentListVector::new();
+        adjs.add_adjacent_list(AdjacentList::new(
+            AdjListType::OrderedBySource,
+            FileType::Csv,
+            "ordered_by_source/",
+        ));
+
+        let mut props = PropertyVec::new();
+        props.add_property(Property::new(
+            "weight",
+            &DataType::float64(),
+            false,
+            true,
+            Cardinality::Single,
+        ));
+        let mut pgv = PropertyGroupVector::new();
+        pgv.add_property_group(PropertyGroup::new(props, FileType::Csv, "weight/"));
+
+        let ver = InfoVersion::new(1)?;
+        let ei = EdgeInfo::new(
+            "person", "knows", "person", 10, 2, 2, true, adjs, pgv, "", ver,
+        );
+        assert_eq!(ei.src_type(), "person");
+        assert_eq!(ei.dst_type(), "person");
+        assert_eq!(ei.edge_type(), "knows");
+        assert_eq!(ei.chunk_size(), 10);
+        assert!(ei.is_directed());
+
+        let dump = ei.dump()?;
+        assert!(dump.contains("edge_type: knows"));
+
+        let dir = tempdir()?;
+        let path = dir.path().join("person_knows_person.edge.yml");
+        ei.save(&path)?;
+        assert!(path.exists());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_graph_info_new_build_and_dump() -> anyhow::Result<()> {
+        // VertexInfo
+        let mut vp = PropertyVec::new();
+        vp.add_property(Property::new(
+            "id",
+            &DataType::int64(),
+            true,
+            false,
+            Cardinality::Single,
+        ));
+        let pg = PropertyGroup::new(vp, FileType::Csv, "");
+        let mut pgv = PropertyGroupVector::new();
+        pgv.add_property_group(pg);
+        let ver = InfoVersion::new(1)?;
+        let vi = VertexInfo::new(
+            "person".into(),
+            2,
+            pgv,
+            vec!["Person".into()],
+            "",
+            ver.clone(),
+        );
+
+        // EdgeInfo
+        let mut adjs = AdjacentListVector::new();
+        adjs.add_adjacent_list(AdjacentList::new(
+            AdjListType::OrderedBySource,
+            FileType::Csv,
+            "ordered_by_source/",
+        ));
+        let mut ep = PropertyVec::new();
+        ep.add_property(Property::new(
+            "w",
+            &DataType::float64(),
+            false,
+            true,
+            Cardinality::Single,
+        ));
+        let mut epg = PropertyGroupVector::new();
+        epg.add_property_group(PropertyGroup::new(ep, FileType::Csv, "w/"));
+        let ei = EdgeInfo::new(
+            "person", "knows", "person", 10, 2, 2, true, adjs, epg, "", ver,
+        );
+
+        // GraphInfo::new
+        let name = "my_graph".to_string();
+        let labels = vec!["Person".to_string()];
+        let prefix = "test_graph/".to_string();
+        let g = GraphInfo::new(&name, &vec![vi], &vec![ei], &labels, &prefix, None);
+
+        assert_eq!(g.name(), name);
+        assert_eq!(g.vertex_info_num(), 1);
+        assert_eq!(g.edge_info_num(), 1);
+        assert_eq!(g.prefix(), prefix);
+        assert!(g.labels().contains(&"Person".to_string()));
+
+        let dump = g.dump()?;
+        assert!(dump.contains("name: my_graph"));
+        println!("{}", dump);
+
+        let dir = tempdir()?;
+        let out = dir.path().join("graph.graph.yml");
+        g.save(&out)?;
+        assert!(out.exists());
+
+        Ok(())
     }
 }

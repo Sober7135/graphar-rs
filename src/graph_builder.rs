@@ -16,78 +16,78 @@ use crate::{
 };
 
 pub trait SupportedDataType<T> {
-    fn vertex_add_property(vertex: &mut Vertex, name: &str, val: T);
-    fn edge_add_property(edge: &mut Edge, name: &str, val: T);
+    fn vertex_add_property(vertex: &mut VertexBuilder, name: &str, val: T);
+    fn edge_add_property(edge: &mut EdgeBuilder, name: &str, val: T);
 }
 
 impl SupportedDataType<bool> for () {
-    fn vertex_add_property(vertex: &mut Vertex, name: &str, val: bool) {
+    fn vertex_add_property(vertex: &mut VertexBuilder, name: &str, val: bool) {
         let_cxx_string!(name = name);
         vertex_add_property_bool(vertex.inner.pin_mut(), &name, val);
     }
 
-    fn edge_add_property(edge: &mut Edge, name: &str, val: bool) {
+    fn edge_add_property(edge: &mut EdgeBuilder, name: &str, val: bool) {
         let_cxx_string!(name = name);
         edge_add_property_bool(edge.inner.pin_mut(), &name, val);
     }
 }
 
 impl SupportedDataType<i32> for () {
-    fn vertex_add_property(vertex: &mut Vertex, name: &str, val: i32) {
+    fn vertex_add_property(vertex: &mut VertexBuilder, name: &str, val: i32) {
         let_cxx_string!(name = name);
         vertex_add_property_i32(vertex.inner.pin_mut(), &name, val);
     }
 
-    fn edge_add_property(edge: &mut Edge, name: &str, val: i32) {
+    fn edge_add_property(edge: &mut EdgeBuilder, name: &str, val: i32) {
         let_cxx_string!(name = name);
         ffi::graphar::edge_add_property_i32(edge.inner.pin_mut(), &name, val);
     }
 }
 
 impl SupportedDataType<i64> for () {
-    fn vertex_add_property(vertex: &mut Vertex, name: &str, val: i64) {
+    fn vertex_add_property(vertex: &mut VertexBuilder, name: &str, val: i64) {
         let_cxx_string!(name = name);
         vertex_add_property_i64(vertex.inner.pin_mut(), &name, val);
     }
 
-    fn edge_add_property(edge: &mut Edge, name: &str, val: i64) {
+    fn edge_add_property(edge: &mut EdgeBuilder, name: &str, val: i64) {
         let_cxx_string!(name = name);
         ffi::graphar::edge_add_property_i64(edge.inner.pin_mut(), &name, val);
     }
 }
 
 impl SupportedDataType<f32> for () {
-    fn vertex_add_property(vertex: &mut Vertex, name: &str, val: f32) {
+    fn vertex_add_property(vertex: &mut VertexBuilder, name: &str, val: f32) {
         let_cxx_string!(name = name);
         vertex_add_property_f32(vertex.inner.pin_mut(), &name, val);
     }
 
-    fn edge_add_property(edge: &mut Edge, name: &str, val: f32) {
+    fn edge_add_property(edge: &mut EdgeBuilder, name: &str, val: f32) {
         let_cxx_string!(name = name);
         ffi::graphar::edge_add_property_f32(edge.inner.pin_mut(), &name, val);
     }
 }
 
 impl SupportedDataType<f64> for () {
-    fn vertex_add_property(vertex: &mut Vertex, name: &str, val: f64) {
+    fn vertex_add_property(vertex: &mut VertexBuilder, name: &str, val: f64) {
         let_cxx_string!(name = name);
         vertex_add_property_f64(vertex.inner.pin_mut(), &name, val);
     }
 
-    fn edge_add_property(edge: &mut Edge, name: &str, val: f64) {
+    fn edge_add_property(edge: &mut EdgeBuilder, name: &str, val: f64) {
         let_cxx_string!(name = name);
         ffi::graphar::edge_add_property_f64(edge.inner.pin_mut(), &name, val);
     }
 }
 
 impl SupportedDataType<String> for () {
-    fn vertex_add_property(vertex: &mut Vertex, name: &str, val: String) {
+    fn vertex_add_property(vertex: &mut VertexBuilder, name: &str, val: String) {
         let_cxx_string!(name = name);
         let_cxx_string!(val = val);
         vertex_add_property_string(vertex.inner.pin_mut(), &name, &val);
     }
 
-    fn edge_add_property(edge: &mut Edge, name: &str, val: String) {
+    fn edge_add_property(edge: &mut EdgeBuilder, name: &str, val: String) {
         let_cxx_string!(name = name);
         let_cxx_string!(val = val);
         ffi::graphar::edge_add_property_string(edge.inner.pin_mut(), &name, &val);
@@ -98,34 +98,34 @@ impl<T> SupportedDataType<Vec<T>> for ()
 where
     (): SupportedDataType<T>,
 {
-    fn vertex_add_property(_vertex: &mut Vertex, _name: &str, _val: Vec<T>) {
+    fn vertex_add_property(_vertex: &mut VertexBuilder, _name: &str, _val: Vec<T>) {
         todo!()
     }
 
-    fn edge_add_property(_edge: &mut Edge, _name: &str, _val: Vec<T>) {
+    fn edge_add_property(_edge: &mut EdgeBuilder, _name: &str, _val: Vec<T>) {
         todo!()
     }
 }
 // TODO(date, timestamp)
 
-fn vertex_add_property<T, S: AsRef<str>>(vertex: &mut Vertex, name: S, val: T)
+fn vertex_add_property<T, S: AsRef<str>>(vertex: &mut VertexBuilder, name: S, val: T)
 where
     (): SupportedDataType<T>,
 {
     <() as SupportedDataType<T>>::vertex_add_property(vertex, name.as_ref(), val);
 }
 
-pub struct Vertex {
-    inner: UniquePtr<ffi::graphar::BuilderVertex>,
+pub struct VertexBuilder {
+    inner: UniquePtr<ffi::graphar::VertexBuilder>,
 }
 
-impl Default for Vertex {
+impl Default for VertexBuilder {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl Vertex {
+impl VertexBuilder {
     pub fn new() -> Self {
         Self {
             inner: new_vertex(),
@@ -157,7 +157,7 @@ impl VerticesBuilder {
         })
     }
 
-    pub fn add_vertex(&mut self, mut vertex: Vertex) -> anyhow::Result<()> {
+    pub fn add_vertex(&mut self, mut vertex: VertexBuilder) -> anyhow::Result<()> {
         unsafe { add_vertex(self.inner.pin_mut_unchecked(), vertex.inner.pin_mut())? };
         Ok(())
     }
@@ -168,11 +168,11 @@ impl VerticesBuilder {
     }
 }
 
-pub struct Edge {
-    inner: UniquePtr<ffi::graphar::BuilderEdge>,
+pub struct EdgeBuilder {
+    inner: UniquePtr<ffi::graphar::EdgeBuilder>,
 }
 
-impl Edge {
+impl EdgeBuilder {
     pub fn new(src_id: i64, dst_id: i64) -> Self {
         Self {
             inner: new_edge(src_id, dst_id),
@@ -204,7 +204,7 @@ impl EdgesBuilder {
         Ok(Self { inner })
     }
 
-    pub fn add_edge(&mut self, mut edge: Edge) -> anyhow::Result<()> {
+    pub fn add_edge(&mut self, mut edge: EdgeBuilder) -> anyhow::Result<()> {
         unsafe { ffi::graphar::add_edge(self.inner.pin_mut_unchecked(), edge.inner.pin_mut())? };
         Ok(())
     }

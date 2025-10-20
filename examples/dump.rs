@@ -47,11 +47,11 @@ fn dump() {
 
     // `VerticesBuilder` dump
     let mut vb = VerticesBuilder::new(&vertex_info, "/tmp/test_graphar/vertex/", 0).unwrap();
-    let mut alice = graph_builder::Vertex::new();
+    let mut alice = graph_builder::VertexBuilder::new();
     alice.add_property("id".into(), 1_i64);
     alice.add_property("name".into(), "alice".to_string());
 
-    let mut bob = graph_builder::Vertex::new();
+    let mut bob = graph_builder::VertexBuilder::new();
     bob.add_property("id".into(), 2_i64);
     bob.add_property("name".into(), "bob".to_string());
     vb.add_vertex(alice).unwrap();
@@ -103,7 +103,7 @@ fn dump() {
         2,
     )
     .unwrap();
-    let mut e = graph_builder::Edge::new(1, 2);
+    let mut e = graph_builder::EdgeBuilder::new(1, 2);
     e.add_property("friend".into(), "bob".to_string());
     edge_builder.add_edge(e).unwrap();
     edge_builder.dump().unwrap();

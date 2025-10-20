@@ -325,24 +325,24 @@ pub(crate) mod graphar {
     // `builder::Vertex`
     #[namespace = "graphar::builder"]
     unsafe extern "C++" {
-        #[rust_name = "BuilderVertex"]
+        #[rust_name = "VertexBuilder"]
         type Vertex;
 
         #[namespace = "graphar_rs"]
-        fn new_vertex() -> UniquePtr<BuilderVertex>;
+        fn new_vertex() -> UniquePtr<VertexBuilder>;
         #[namespace = "graphar_rs"]
-        fn vertex_add_property_bool(vertex: Pin<&mut BuilderVertex>, name: &CxxString, val: bool);
+        fn vertex_add_property_bool(vertex: Pin<&mut VertexBuilder>, name: &CxxString, val: bool);
         #[namespace = "graphar_rs"]
-        fn vertex_add_property_i32(vertex: Pin<&mut BuilderVertex>, name: &CxxString, val: i32);
+        fn vertex_add_property_i32(vertex: Pin<&mut VertexBuilder>, name: &CxxString, val: i32);
         #[namespace = "graphar_rs"]
-        fn vertex_add_property_i64(vertex: Pin<&mut BuilderVertex>, name: &CxxString, val: i64);
+        fn vertex_add_property_i64(vertex: Pin<&mut VertexBuilder>, name: &CxxString, val: i64);
         #[namespace = "graphar_rs"]
-        fn vertex_add_property_f32(vertex: Pin<&mut BuilderVertex>, name: &CxxString, val: f32);
+        fn vertex_add_property_f32(vertex: Pin<&mut VertexBuilder>, name: &CxxString, val: f32);
         #[namespace = "graphar_rs"]
-        fn vertex_add_property_f64(vertex: Pin<&mut BuilderVertex>, name: &CxxString, val: f64);
+        fn vertex_add_property_f64(vertex: Pin<&mut VertexBuilder>, name: &CxxString, val: f64);
         #[namespace = "graphar_rs"]
         fn vertex_add_property_string(
-            vertex: Pin<&mut BuilderVertex>,
+            vertex: Pin<&mut VertexBuilder>,
             name: &CxxString,
             val: &CxxString,
         );
@@ -355,7 +355,7 @@ pub(crate) mod graphar {
         type VerticesBuilder;
 
         #[namespace = "graphar_rs"]
-        fn add_vertex(builder: Pin<&mut VerticesBuilder>, v: Pin<&mut BuilderVertex>)
+        fn add_vertex(builder: Pin<&mut VerticesBuilder>, v: Pin<&mut VertexBuilder>)
         -> Result<()>;
         #[namespace = "graphar_rs"]
         fn new_vertices_builder(
@@ -449,23 +449,23 @@ pub(crate) mod graphar {
     // `builder::Edge`
     #[namespace = "graphar::builder"]
     unsafe extern "C++" {
-        #[rust_name = "BuilderEdge"]
+        #[rust_name = "EdgeBuilder"]
         type Edge;
 
         #[namespace = "graphar_rs"]
-        fn new_edge(src_id: i64, dst_id: i64) -> UniquePtr<BuilderEdge>;
+        fn new_edge(src_id: i64, dst_id: i64) -> UniquePtr<EdgeBuilder>;
         #[namespace = "graphar_rs"]
-        fn edge_add_property_bool(edge: Pin<&mut BuilderEdge>, name: &CxxString, val: bool);
+        fn edge_add_property_bool(edge: Pin<&mut EdgeBuilder>, name: &CxxString, val: bool);
         #[namespace = "graphar_rs"]
-        fn edge_add_property_i32(edge: Pin<&mut BuilderEdge>, name: &CxxString, val: i32);
+        fn edge_add_property_i32(edge: Pin<&mut EdgeBuilder>, name: &CxxString, val: i32);
         #[namespace = "graphar_rs"]
-        fn edge_add_property_i64(edge: Pin<&mut BuilderEdge>, name: &CxxString, val: i64);
+        fn edge_add_property_i64(edge: Pin<&mut EdgeBuilder>, name: &CxxString, val: i64);
         #[namespace = "graphar_rs"]
-        fn edge_add_property_f32(edge: Pin<&mut BuilderEdge>, name: &CxxString, val: f32);
+        fn edge_add_property_f32(edge: Pin<&mut EdgeBuilder>, name: &CxxString, val: f32);
         #[namespace = "graphar_rs"]
-        fn edge_add_property_f64(edge: Pin<&mut BuilderEdge>, name: &CxxString, val: f64);
+        fn edge_add_property_f64(edge: Pin<&mut EdgeBuilder>, name: &CxxString, val: f64);
         #[namespace = "graphar_rs"]
-        fn edge_add_property_string(edge: Pin<&mut BuilderEdge>, name: &CxxString, val: &CxxString);
+        fn edge_add_property_string(edge: Pin<&mut EdgeBuilder>, name: &CxxString, val: &CxxString);
         // TODO(list date timestamp)
     }
 
@@ -475,7 +475,7 @@ pub(crate) mod graphar {
         type EdgesBuilder;
 
         #[namespace = "graphar_rs"]
-        fn add_edge(builder: Pin<&mut EdgesBuilder>, e: Pin<&mut BuilderEdge>) -> Result<()>;
+        fn add_edge(builder: Pin<&mut EdgesBuilder>, e: Pin<&mut EdgeBuilder>) -> Result<()>;
         #[namespace = "graphar_rs"]
         fn new_edges_builder(
             edge_info: &SharedPtr<EdgeInfo>,
@@ -583,6 +583,7 @@ pub(crate) mod graphar {
     }
     #[namespace = "graphar_rs"]
     unsafe extern "C++" {
+        fn vertex_iter_deref(iter: Pin<&mut VertexIter>) -> UniquePtr<Vertex>;
         fn vertex_iter_eq(lhs: &UniquePtr<VertexIter>, rhs: &UniquePtr<VertexIter>) -> bool;
         fn vertex_iter_id(iter: Pin<&mut VertexIter>) -> i64;
         fn vertex_iter_property_bool(iter: Pin<&mut VertexIter>, name: &CxxString) -> Result<bool>;
@@ -616,6 +617,7 @@ pub(crate) mod graphar {
     }
     #[namespace = "graphar_rs"]
     unsafe extern "C++" {
+        fn edge_iter_deref(iter: Pin<&mut EdgeIter>) -> UniquePtr<Edge>;
         fn edge_iter_eq(lhs: &UniquePtr<EdgeIter>, rhs: &UniquePtr<EdgeIter>) -> bool;
         fn edge_iter_property_bool(iter: Pin<&mut EdgeIter>, name: &CxxString) -> Result<bool>;
         fn edge_iter_property_i32(iter: Pin<&mut EdgeIter>, name: &CxxString) -> Result<i32>;

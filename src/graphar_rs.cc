@@ -351,6 +351,11 @@ rust::String edge_property_string(const graphar::Edge &edge,
 }
 
 // VertexIter
+
+std::unique_ptr<graphar::Vertex> vertex_iter_deref(graphar::VertexIter &iter) {
+  return std::make_unique<graphar::Vertex>(*iter);
+}
+
 bool vertex_iter_eq(const std::unique_ptr<graphar::VertexIter> &lhs,
                     const std::unique_ptr<graphar::VertexIter> &rhs) {
   return *lhs == *rhs;
@@ -402,6 +407,11 @@ vertex_iter_labels(graphar::VertexIter &iter) {
 }
 
 void vertex_iter_next(graphar::VertexIter &iter) { ++iter; }
+
+// EdgeIter
+std::unique_ptr<graphar::Edge> edge_iter_deref(graphar::EdgeIter &iter) {
+  return std::make_unique<graphar::Edge>(*iter);
+}
 
 bool edge_iter_eq(const std::unique_ptr<graphar::EdgeIter> &lhs,
                   const std::unique_ptr<graphar::EdgeIter> &rhs) {
