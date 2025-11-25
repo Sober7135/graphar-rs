@@ -731,3 +731,45 @@ pub(crate) mod graphar {
         ) -> Result<SharedPtr<EdgesCollection>>;
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::graphar::*;
+    use crate::graph_info::GraphInfo;
+    use cxx::let_cxx_string;
+    use std::path::{Path, PathBuf};
+
+    fn test_data_root() -> PathBuf {
+        std::env::var("GAR_TEST_DIR")
+            .map(PathBuf::from)
+            .unwrap_or_else(|_| {
+                Path::new(env!("CARGO_MANIFEST_DIR")).join("incubator-graphar-testing")
+            })
+    }
+
+    #[test]
+    fn filter_vertices_by_property_parquet() {
+        // ldbc_sample parquet person; filter by gender == "male"
+        let path = test_data_root()
+            .join("ldbc_sample")
+            .join("parquet")
+            .join("ldbc_sample.graph.yml");
+        let gi = GraphInfo::load(path).unwrap();
+        let_cxx_string!(person = "person");
+        let mut vc = vertices_collection_make(&gi.inner, &person).unwrap();
+
+        // Build expression: gender == "male"
+        let_cxx_string!(gender = "gender");
+        let_cxx_string!(gender_name = "gender");
+        let lhs = expression_property(&gender_name);
+        let_cxx_string!(male = "male");
+        let rhs = expression_literal_string(&male);
+        let expr = expression_equal(&lhs, &rhs);
+
+        let ids = unsafe {
+            filter_by_property_name(vc.pin_mut_unchecked(), &gender, expr.clone()).unwrap()
+        };
+        // `grep -r ",male" incubator-graphar-testing/ldbc_sample/csv/vertex/person/firstName_lastName_gender/ | wc -l`
+        assert_eq!(ids.len(), 449);
+    }
+}

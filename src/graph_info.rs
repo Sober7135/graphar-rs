@@ -1,27 +1,15 @@
 // Currently do not support cardinality
 
 pub use ffi::graphar::{AdjListType, Cardinality, FileType, Type};
-use std::{
-    fmt::{Debug, Display},
-    path::Path,
-};
-
-use cxx::{CxxVector, SharedPtr, UniquePtr, let_cxx_string};
 
 use crate::{
     cxx_string_to_string,
-    ffi::{
-        self, SharedPropertyGroup, SharedVertexInfo,
-        graphar::{
-            CreateAdjacentList, CreateEdgeInfo, CreatePropertyGroup, boolean, create_graph_info,
-            create_vertex_info, date, edge_info_dump, edge_info_save, float32, float64,
-            graph_info_dump, graph_info_save, int32, int64, list, load_graph_info,
-            new_adjacent_list_vec, new_const_info_version, new_properties, new_property,
-            new_property_group_vec, property_clone, property_get_name, property_get_type,
-            push_adjacent_list, push_property, push_property_group, string, timestamp,
-            to_type_name, vertex_info_dump, vertex_info_save,
-        },
-    },
+    ffi::{self, SharedPropertyGroup, SharedVertexInfo, graphar::*},
+};
+use cxx::{CxxVector, SharedPtr, UniquePtr, let_cxx_string};
+use std::{
+    fmt::{Debug, Display},
+    path::Path,
 };
 
 #[derive(Clone)]
@@ -707,6 +695,8 @@ impl EdgeInfo {
 
 #[cfg(test)]
 mod tests {
+    use std::iter;
+
     use tempfile::tempdir;
 
     use super::*;
@@ -719,6 +709,7 @@ mod tests {
         }
     }
 
+    // `DataType`
     #[test]
     fn test_data_type_equality() {
         let float = DataType::float32();
@@ -881,7 +872,7 @@ mod tests {
     }
 
     #[test]
-    fn property_group_has_property() {
+    fn test_property_group_has_property() {
         let mut props = PropertyVec::new();
         props.add_property(Property::new(
             "id",
@@ -903,6 +894,7 @@ mod tests {
         assert!(!pg.has_property("missing"));
     }
 
+    // `AdjacentList`
     #[test]
     fn test_adjacent_list_new_fields() {
         let adj = AdjacentList::new(AdjListType::OrderedBySource, FileType::Csv, "adj/");
@@ -911,6 +903,7 @@ mod tests {
         assert_eq!(adj.prefix(), "adj/");
     }
 
+    // `VertexInfo`
     #[test]
     fn test_vertex_info_new_dump_and_save() -> anyhow::Result<()> {
         let mut props = PropertyVec::new();
@@ -939,6 +932,7 @@ mod tests {
         Ok(())
     }
 
+    // `EdgeInfo`
     #[test]
     fn test_edge_info_new_getters_dump_and_save() -> anyhow::Result<()> {
         let mut adjs = AdjacentListVector::new();
@@ -980,6 +974,7 @@ mod tests {
         Ok(())
     }
 
+    // `GraphInfo`
     #[test]
     fn test_graph_info_new_build_and_dump() -> anyhow::Result<()> {
         // VertexInfo
@@ -1046,6 +1041,209 @@ mod tests {
         g.save(&out)?;
         assert!(out.exists());
 
+        Ok(())
+    }
+
+    #[test]
+    fn test_property_group_properties_roundtrip() {
+        let mut props = PropertyVec::new();
+        props.add_property(Property::new(
+            "id",
+            &DataType::int64(),
+            true,
+            false,
+            Cardinality::Single,
+        ));
+        props.add_property(Property::new(
+            "name",
+            &DataType::string(),
+            false,
+            false,
+            Cardinality::Single,
+        ));
+        let pg = PropertyGroup::new(props, FileType::Csv, "props/");
+        let items: Vec<(String, DataType)> = pg
+            .properties()
+            .into_iter()
+            .map(|p| (p.name(), p.data_type()))
+            .collect();
+
+        assert_eq!(items.len(), 2);
+        assert!(items.contains(&("id".to_string(), DataType::int64())));
+        assert!(items.contains(&("name".to_string(), DataType::string())));
+    }
+
+    #[test]
+    fn test_vertex_info_property_groups_index() -> anyhow::Result<()> {
+        // Build two property groups
+        let mut props1 = PropertyVec::new();
+        props1.add_property(Property::new(
+            "id",
+            &DataType::int64(),
+            true,
+            false,
+            Cardinality::Single,
+        ));
+        let pg1 = PropertyGroup::new(props1, FileType::Csv, "id/");
+
+        let mut props2 = PropertyVec::new();
+        props2.add_property(Property::new(
+            "name",
+            &DataType::string(),
+            false,
+            false,
+            Cardinality::Single,
+        ));
+        let pg2 = PropertyGroup::new(props2, FileType::Csv, "name/");
+
+        let mut pgv = PropertyGroupVector::new();
+        pgv.add_property_group(pg1);
+        pgv.add_property_group(pg2);
+
+        let ver = InfoVersion::new(1)?;
+        let vi = VertexInfo::new("person".into(), 2, pgv, vec![], "", ver);
+        assert_eq!(vi.property_group_num(), 2);
+
+        let pg_first = vi.property_group_by_index(0);
+        assert!(pg_first.has_property("id"));
+        let pg_second = vi.property_group_by_index(1);
+        assert!(pg_second.has_property("name"));
+        Ok(())
+    }
+
+    #[test]
+    fn test_edge_info_adjacent_list_and_property_group_index() -> anyhow::Result<()> {
+        let mut adjs = AdjacentListVector::new();
+        adjs.add_adjacent_list(AdjacentList::new(
+            AdjListType::OrderedBySource,
+            FileType::Csv,
+            "ordered_by_source/",
+        ));
+
+        let mut ep = PropertyVec::new();
+        ep.add_property(Property::new(
+            "weight",
+            &DataType::float64(),
+            false,
+            true,
+            Cardinality::Single,
+        ));
+        let mut epg = PropertyGroupVector::new();
+        epg.add_property_group(PropertyGroup::new(ep, FileType::Csv, "weight/"));
+
+        let ver = InfoVersion::new(1)?;
+        let ei = EdgeInfo::new(
+            "person", "knows", "person", 10, 2, 2, true, adjs, epg, "", ver,
+        );
+
+        assert!(ei.has_adjacent_list_type(AdjListType::OrderedBySource));
+        assert!(!ei.has_adjacent_list_type(AdjListType::OrderedByDest));
+
+        let pg0 = ei.property_group_by_index(0);
+        assert!(pg0.has_property("weight"));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_graph_info_indices() -> anyhow::Result<()> {
+        // Vertex infos: person then software
+        let mut vertex_prop_vec1 = PropertyVec::new();
+        vertex_prop_vec1.add_property(Property::new(
+            "id",
+            &DataType::int64(),
+            true,
+            false,
+            Cardinality::Single,
+        ));
+        let mut vertex_prop_group1 = PropertyGroupVector::new();
+        vertex_prop_group1.add_property_group(PropertyGroup::new(
+            vertex_prop_vec1,
+            FileType::Csv,
+            "id/",
+        ));
+        let ver = InfoVersion::new(1)?;
+        let vertex_info_person = VertexInfo::new(
+            "person".into(),
+            2,
+            vertex_prop_group1,
+            vec![],
+            "",
+            ver.clone(),
+        );
+
+        let mut vertex_prop_vec2 = PropertyVec::new();
+        vertex_prop_vec2.add_property(Property::new(
+            "id",
+            &DataType::int64(),
+            true,
+            false,
+            Cardinality::Single,
+        ));
+        let mut vertex_prop_group_vec2 = PropertyGroupVector::new();
+        vertex_prop_group_vec2.add_property_group(PropertyGroup::new(
+            vertex_prop_vec2,
+            FileType::Csv,
+            "id/",
+        ));
+        let vertex_info_software = VertexInfo::new(
+            "software".into(),
+            2,
+            vertex_prop_group_vec2,
+            vec![],
+            "",
+            ver.clone(),
+        );
+
+        // Edge info
+        let mut adjs = AdjacentListVector::new();
+        adjs.add_adjacent_list(AdjacentList::new(
+            AdjListType::OrderedBySource,
+            FileType::Csv,
+            "ordered_by_source/",
+        ));
+        let mut edge_prop_vec = PropertyVec::new();
+        edge_prop_vec.add_property(Property::new(
+            "weight",
+            &DataType::float64(),
+            false,
+            true,
+            Cardinality::Single,
+        ));
+        let mut edge_prop_group_vec = PropertyGroupVector::new();
+        edge_prop_group_vec.add_property_group(PropertyGroup::new(
+            edge_prop_vec,
+            FileType::Csv,
+            "weight/",
+        ));
+        let edge_info = EdgeInfo::new(
+            "person",
+            "knows",
+            "person",
+            10,
+            2,
+            2,
+            true,
+            adjs,
+            edge_prop_group_vec,
+            "",
+            ver,
+        );
+
+        let graph_info = GraphInfo::new(
+            "g",
+            &vec![vertex_info_person, vertex_info_software],
+            &vec![edge_info],
+            &vec![],
+            "prefix/",
+            None,
+        );
+
+        assert_eq!(graph_info.vertex_info_index("person"), 0);
+        assert_eq!(graph_info.vertex_info_index("software"), 1);
+        assert_eq!(graph_info.edge_info_index("person", "knows", "person"), 0);
+        assert_eq!(graph_info.vertex_infos().len(), 2);
+        assert_eq!(graph_info.edge_infos().len(), 1);
         Ok(())
     }
 }

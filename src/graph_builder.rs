@@ -214,3 +214,171 @@ impl EdgesBuilder {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::graph_info::*;
+    use tempfile::tempdir;
+
+    fn make_vertex_info() -> VertexInfo {
+        let mut props = PropertyVec::new();
+        props.add_property(Property::new(
+            "id",
+            &DataType::int64(),
+            true,
+            false,
+            Cardinality::Single,
+        ));
+        props.add_property(Property::new(
+            "name",
+            &DataType::string(),
+            false,
+            false,
+            Cardinality::Single,
+        ));
+        let mut pgv = PropertyGroupVector::new();
+        pgv.add_property_group(PropertyGroup::new(props, FileType::Parquet, ""));
+        let ver = InfoVersion::new(1).unwrap();
+        VertexInfo::new("person".into(), 4, pgv, vec![], "", ver)
+    }
+
+    fn make_edge_info() -> EdgeInfo {
+        let mut adjs = AdjacentListVector::new();
+        adjs.add_adjacent_list(AdjacentList::new(
+            AdjListType::OrderedBySource,
+            FileType::Orc,
+            "",
+        ));
+        let mut edge_props = PropertyVec::new();
+        edge_props.add_property(Property::new(
+            "friend",
+            &DataType::string(),
+            false,
+            true,
+            Cardinality::Single,
+        ));
+        let mut edge_prop_groups = PropertyGroupVector::new();
+        edge_prop_groups.add_property_group(PropertyGroup::new(
+            edge_props,
+            FileType::Csv,
+            "props/",
+        ));
+        let ver = InfoVersion::new(1).unwrap();
+        EdgeInfo::new(
+            "person",
+            "knows",
+            "person",
+            4,
+            4,
+            4,
+            true,
+            adjs,
+            edge_prop_groups,
+            "",
+            ver,
+        )
+    }
+
+    #[test]
+    fn test_vertices_builder_add_and_dump() {
+        let vi = make_vertex_info();
+        let tmp = tempdir().unwrap();
+        let mut vb = VerticesBuilder::new(&vi, tmp.path().join("vertex/"), 0).unwrap();
+
+        let mut alice = VertexBuilder::new();
+        alice.add_property("id".into(), 1_i64);
+        alice.add_property("name".into(), "alice".to_string());
+        vb.add_vertex(alice).unwrap();
+
+        let mut bob = VertexBuilder::new();
+        bob.add_property("id".into(), 2_i64);
+        bob.add_property("name".into(), "bob".to_string());
+        vb.add_vertex(bob).unwrap();
+
+        vb.dump().unwrap();
+        // success means FFI calls completed without error
+    }
+
+    #[test]
+    fn test_edges_builder_add_and_dump() {
+        let ei = make_edge_info();
+        let tmp = tempdir().unwrap();
+        let mut eb = EdgesBuilder::new(
+            &ei,
+            tmp.path().join("edge/"),
+            AdjListType::OrderedBySource,
+            2,
+        )
+        .unwrap();
+
+        let mut e = EdgeBuilder::new(1, 2);
+        e.add_property("friend".into(), "bob".to_string());
+        eb.add_edge(e).unwrap();
+    }
+
+    #[test]
+    fn test_vertices_builder_various_property_types() {
+        // Build a VertexInfo with multiple property types
+        let mut props = PropertyVec::new();
+        props.add_property(Property::new(
+            "id",
+            &DataType::int64(),
+            true,
+            false,
+            Cardinality::Single,
+        ));
+        props.add_property(Property::new(
+            "active",
+            &DataType::bool(),
+            false,
+            false,
+            Cardinality::Single,
+        ));
+        props.add_property(Property::new(
+            "age_i32",
+            &DataType::int32(),
+            false,
+            false,
+            Cardinality::Single,
+        ));
+        props.add_property(Property::new(
+            "score_f32",
+            &DataType::float32(),
+            false,
+            false,
+            Cardinality::Single,
+        ));
+        props.add_property(Property::new(
+            "rating_f64",
+            &DataType::float64(),
+            false,
+            false,
+            Cardinality::Single,
+        ));
+        props.add_property(Property::new(
+            "name",
+            &DataType::string(),
+            false,
+            false,
+            Cardinality::Single,
+        ));
+        let mut pgv = PropertyGroupVector::new();
+        pgv.add_property_group(PropertyGroup::new(props, FileType::Parquet, ""));
+        let ver = InfoVersion::new(1).unwrap();
+        let vi = VertexInfo::new("person".into(), 4, pgv, vec![], "", ver);
+
+        let tmp = tempdir().unwrap();
+        let mut vb = VerticesBuilder::new(&vi, tmp.path().join("vertex/"), 0).unwrap();
+
+        let mut alice = VertexBuilder::new();
+        alice.add_property("id".into(), 1_i64);
+        alice.add_property("active".into(), true);
+        alice.add_property("age_i32".into(), 30_i32);
+        alice.add_property("score_f32".into(), 0.9_f32);
+        alice.add_property("rating_f64".into(), 4.5_f64);
+        alice.add_property("name".into(), "alice".to_string());
+        vb.add_vertex(alice).unwrap();
+        vb.dump().unwrap();
+    }
+}
