@@ -99,7 +99,8 @@ See `examples/read.rs` and `examples/dump.rs` for the full flows.
 ## Current Limitations
 
 - List-, date-, and timestamp-typed properties are not yet supported by the safe builders or iterators.
-- Some GraphAr APIs remain unexposed
+- Some GraphAr APIs remain unexposed.
+- Can only be compiled in Dockerfile.
 
 ## License
 
